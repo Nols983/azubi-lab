@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#172554">
+    <title>Offline | Azubi Lab</title>
+    <style>
+      * { box-sizing: border-box; }
+      html, body { min-height: 100%; }
+      body { margin: 0; display: grid; place-items: center; padding: 1.25rem; background: #f5f7fb; color: #0f172a; font-family: Arial, Helvetica, sans-serif; }
+      main { width: min(100%, 38rem); border: 1px solid #cbd5e1; border-radius: 1rem; background: #fff; padding: clamp(1.5rem, 5vw, 2.5rem); box-shadow: 0 8px 30px rgb(15 23 42 / 8%); }
+      p:first-child { margin: 0; color: #1d4ed8; font-size: .875rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+      h1 { margin: .6rem 0 0; font-size: clamp(1.8rem, 7vw, 2.5rem); }
+      p { margin: 1rem 0 0; line-height: 1.7; color: #475569; }
+      button { min-height: 3rem; margin-top: 1.5rem; border: 0; border-radius: .75rem; background: #172554; color: #fff; padding: .75rem 1.1rem; font: inherit; font-weight: 700; cursor: pointer; }
+      button:focus-visible { outline: 3px solid #2563eb; outline-offset: 4px; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <p>Azubi Lab</p>
+      <h1>Du bist offline</h1>
+      <p>Für Anmeldung, synchronisierte Lerninhalte, Prüfungen und Änderungen an deinem Lernstand ist eine Internetverbindung erforderlich.</p>
+      <button type="button" onclick="location.reload()">Erneut verbinden</button>
+    </main>
+  </body>
+</html>

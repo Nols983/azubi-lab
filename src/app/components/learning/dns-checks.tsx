@@ -1,0 +1,37 @@
+"use client";
+
+import { useId, useState } from "react";
+
+const resolutionSteps = ["Client fragt den rekursiven Resolver", "Resolver prüft seinen Cache", "Resolver fragt einen Root-Server", "Resolver fragt einen TLD-Server", "Resolver fragt den autoritativen Server", "Resolver gibt die Antwort an den Client zurück"] as const;
+
+export function DnsResolutionOrderCheck() {
+  const id = useId();
+  const [answers, setAnswers] = useState<string[]>(Array(6).fill(""));
+  const [state, setState] = useState<"idle" | "incomplete" | "checked">("idle");
+  const wrong = answers.map((answer, index) => answer !== resolutionSteps[index]);
+  const correct = wrong.every((value) => !value);
+  function update(index: number, value: string) { const next = [...answers]; next[index] = value; setAnswers(next); setState("idle"); }
+  function reset() { setAnswers(Array(6).fill("")); setState("idle"); }
+  return <section aria-labelledby={id} className="rounded-2xl border border-amber-200 bg-amber-50 p-5 sm:p-7">
+    <p className="text-sm font-bold uppercase tracking-[0.12em] text-amber-800">Reihenfolge prüfen</p><h2 id={id} className="mt-2 text-xl font-bold text-slate-950">Der vereinfachte ungespeicherte Ablauf</h2>
+    <p className="mt-3 text-sm leading-6">Ordne den Lehrbuchablauf. In der Praxis können bereits gespeicherte Antworten oder Delegationen Schritte ersparen.</p>
+    <form className="mt-5" onSubmit={(event) => { event.preventDefault(); setState(answers.some((answer) => !answer) ? "incomplete" : "checked"); }}><fieldset><legend className="sr-only">Schritte der DNS-Auflösung</legend><div className="grid gap-3 sm:grid-cols-2">{answers.map((answer, index) => <label key={index} className="grid gap-2 rounded-xl border border-slate-200 bg-white p-4 text-sm font-semibold has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-blue-600"><span>Schritt {index + 1}</span><select value={answer} onChange={(event) => update(index, event.target.value)} className="min-h-12 min-w-0 rounded-lg border border-slate-300 bg-white px-3 text-slate-900"><option value="">Bitte auswählen</option>{resolutionSteps.map((step) => <option key={step}>{step}</option>)}</select></label>)}</div></fieldset><div className="mt-5 flex flex-wrap gap-3"><button className="min-h-12 rounded-xl bg-blue-950 px-5 py-3 text-sm font-bold text-white focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-blue-600">Antworten prüfen</button><button type="button" onClick={reset} className="min-h-12 rounded-xl border border-slate-300 bg-white px-5 py-3 text-sm font-bold focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-blue-600">Zurücksetzen</button></div></form>
+    <div aria-live="polite" aria-atomic="true">{state === "incomplete" && <p className="mt-5 rounded-xl border border-amber-300 bg-white p-4 text-sm font-semibold">Beantworte zuerst alle sechs Schritte.</p>}{state === "checked" && <div className={`mt-5 rounded-xl border p-4 text-sm leading-6 ${correct ? "border-emerald-300 bg-emerald-50 text-emerald-950" : "border-amber-300 bg-white"}`}><p className="font-bold">{correct ? "Die Reihenfolge ist richtig." : "Die Reihenfolge stimmt noch nicht."}</p>{!correct && <div className="mt-2 space-y-2">{wrong[0] && <p>Der normale Client fragt zuerst seinen konfigurierten rekursiven Resolver, nicht direkt einen Root-Server.</p>}{wrong[1] && <p>Nach Eingang der Anfrage prüft der Resolver zunächst, ob er bereits aus dem Cache antworten kann.</p>}{(wrong[2] || wrong[3] || wrong[4]) && <p>Im vereinfachten ungespeicherten Ablauf führen Verweise von Root über TLD zum autoritativen Server.</p>}{wrong[5] && <p>Die ermittelte Antwort läuft über den Resolver zurück zum Client.</p>}<p>Ändere die Auswahl und prüfe erneut.</p></div>}</div>}</div>
+  </section>;
+}
+
+const records = [
+  ["www.firma.test direkt einer IPv4-Adresse zuordnen", "A", "A ordnet einen Namen direkt einer IPv4-Adresse zu; CNAME verweist stattdessen auf einen anderen Namen."],
+  ["server01.firma.test einer IPv6-Adresse zuordnen", "AAAA", "AAAA enthält IPv6-Adressinformation."],
+  ["www.firma.test als Alias für web01.firma.test anlegen", "CNAME", "CNAME macht einen DNS-Namen zum Alias eines anderen DNS-Namens und ist kein HTTP-Redirect."],
+  ["Den Mailserver für firma.test festlegen", "MX", "MX nennt einen Mail-Exchanger als Hostnamen, nicht direkt als IP-Adresse."],
+  ["Autoritative Nameserver einer Zone nennen", "NS", "NS beschreibt Autorität für eine Zone; das ist nicht automatisch der am Client konfigurierte Resolver."],
+  ["192.0.2.25 rückwärts einem Namen zuordnen", "PTR", "PTR wird im Reverse-DNS-Namensraum gepflegt und entsteht nicht automatisch aus A."],
+] as const;
+const recordOptions = ["A", "AAAA", "CNAME", "MX", "NS", "PTR"];
+
+export function DnsRecordMatchingCheck() {
+  const id = useId(); const [answers, setAnswers] = useState<Record<number, string>>({}); const [state, setState] = useState<"idle" | "incomplete" | "checked">("idle");
+  const complete = records.every((_, index) => answers[index]); const incorrect = records.map((item, index) => answers[index] !== item[1]); const correct = complete && incorrect.every((value) => !value);
+  return <section aria-labelledby={id} className="rounded-2xl border border-amber-200 bg-amber-50 p-5 sm:p-7"><p className="text-sm font-bold uppercase tracking-[0.12em] text-amber-800">Zuordnung</p><h2 id={id} className="mt-2 text-xl font-bold text-slate-950">Welcher Record passt?</h2><form className="mt-5" onSubmit={(event) => { event.preventDefault(); setState(complete ? "checked" : "incomplete"); }}><fieldset><legend className="sr-only">Szenarien den DNS-Record-Typen zuordnen</legend><div className="grid gap-3 sm:grid-cols-2">{records.map(([scenario], index) => <label key={scenario} className="grid min-w-0 gap-2 rounded-xl border border-slate-200 bg-white p-4 text-sm font-semibold has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-blue-600"><span className="break-words">{scenario}</span><select value={answers[index] ?? ""} onChange={(event) => { setAnswers((current) => ({ ...current, [index]: event.target.value })); setState("idle"); }} className="min-h-12 rounded-lg border border-slate-300 bg-white px-3"><option value="">Bitte auswählen</option>{recordOptions.map((option) => <option key={option}>{option}</option>)}</select></label>)}</div></fieldset><button className="mt-5 min-h-12 rounded-xl bg-blue-950 px-5 py-3 text-sm font-bold text-white focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-blue-600">Zuordnungen prüfen</button></form><div aria-live="polite" aria-atomic="true">{state === "incomplete" && <p className="mt-5 rounded-xl border border-amber-300 bg-white p-4 text-sm font-semibold">Ordne zuerst alle sechs Szenarien zu.</p>}{state === "checked" && <div className={`mt-5 rounded-xl border p-4 text-sm leading-6 ${correct ? "border-emerald-300 bg-emerald-50 text-emerald-950" : "border-amber-300 bg-white"}`}><p className="font-bold">{correct ? "Alle Record-Typen sind richtig zugeordnet." : "Einige Zuordnungen brauchen noch eine Korrektur."}</p>{!correct && <div className="mt-2 space-y-2">{records.map(([scenario, answer, explanation], index) => incorrect[index] && <p key={scenario}><strong>{answer}:</strong> {explanation}</p>)}<p>Ändere die Auswahl und prüfe erneut.</p></div>}</div>}</div></section>;
+}

@@ -1,0 +1,15 @@
+[Unit]
+Description=Azubi Lab daily notification generation (Docker Swarm)
+After=network-online.target docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+User=@DEPLOYMENT_USER@
+WorkingDirectory=@PROJECT_DIRECTORY@
+Environment=DOCKER_BIN=/usr/bin/docker
+Environment=AZUBI_LAB_SWARM_APP_SERVICE=azubi-lab_app
+ExecStart=@PROJECT_DIRECTORY@/scripts/ops/swarm-notifications.sh
+
+# Install this Swarm variant as /etc/systemd/system/azubi-lab-notifications.service
+# so the existing azubi-lab-notifications.timer invokes it.

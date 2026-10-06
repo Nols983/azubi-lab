@@ -1,0 +1,31 @@
+@import "tailwindcss";
+
+:root { --background: #f5f7fb; --foreground: #0f172a; }
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+@media (min-width: 640px) and (max-width: 1023px) {
+  [aria-label="Paketfluss"] {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+* { box-sizing: border-box; }
+html { background: var(--background); }
+body { background: var(--background); color: var(--foreground); font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif; }
+::selection { background: #bfdbfe; color: #172554; }
+.mobile-navigation-drawer {
+  transform: translateX(-100%);
+  transition: transform 180ms ease-out;
+}
+.mobile-navigation-drawer[open] { transform: translateX(0); }
+.mobile-navigation-drawer::backdrop { background: rgb(15 23 42 / 45%); }
+@starting-style {
+  .mobile-navigation-drawer[open] { transform: translateX(-100%); }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { scroll-behavior: auto !important; transition-duration: 0.01ms !important; }
+}

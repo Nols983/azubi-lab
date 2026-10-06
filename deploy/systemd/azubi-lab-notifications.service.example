@@ -1,0 +1,12 @@
+[Unit]
+Description=Azubi Lab daily notification generation
+After=network-online.target
+
+[Service]
+Type=oneshot
+User=@DEPLOYMENT_USER@
+WorkingDirectory=@PROJECT_DIRECTORY@
+ExecStart=/usr/bin/docker compose --env-file @PRODUCTION_ENV_FILE@ -f compose.production.yml exec -T app npm run notifications:generate
+
+# For rootless Podman, replace /usr/bin/docker with /usr/bin/podman and ensure
+# the selected user owns the corresponding Podman session.
