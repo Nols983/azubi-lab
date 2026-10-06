@@ -1,5 +1,7 @@
 # Azubi Lab
 
+[![CI](https://github.com/Nols983/azubi-lab/actions/workflows/ci.yml/badge.svg)](https://github.com/Nols983/azubi-lab/actions/workflows/ci.yml)
+
 **Self-hosted Lernplattform für Fachinformatiker Systemintegration – mit eigener Linux-, Container-, Datenbank-, Deployment- und Backup-Infrastruktur.**
 
 Azubi Lab ist ein persönliches Praxisprojekt, das aus dem Wunsch entstanden ist, FISI-Lerninhalte, Übungen und praktische Troubleshooting-Szenarien an einem Ort zu bündeln.
