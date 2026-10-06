@@ -6,6 +6,11 @@ Azubi Lab ist ein persönliches Praxisprojekt, das aus dem Wunsch entstanden ist
 
 Das Projekt besteht nicht nur aus der Webanwendung: Ich betreibe und entwickle auch die dazugehörige Self-Hosting- und Deployment-Struktur mit Linux, Docker/Swarm, PostgreSQL, Traefik, Bash-Automatisierung, Healthchecks, Migrationen, Backups und kontrollierten Restore-/Update-Abläufen.
 
+### Einblick in die Anwendung
+
+![Azubi Lab Dashboard](docs/screenshots/dashboard.png)
+
+
 > **Portfolio-Hinweis**
 >
 > Dieses öffentliche Repository ist ein sanitisiertes Abbild eines real betriebenen Self-Hosted-Projekts. Produktionsdomains, Hostnamen, lokale Infrastrukturpfade, Secrets und die private Produktionshistorie sind nicht enthalten. Beispielwerte wie `azubi.example.com`, `swarm-manager` und `/srv/azubi-lab/...` sind bewusst neutralisiert.
@@ -42,6 +47,21 @@ Die Plattform umfasst unter anderem:
 - Teams und geschützte Social-Profile
 - In-App-Benachrichtigungen und Web Push
 - Administration und rollenbasierte Zugriffssteuerung
+
+### Interaktive Labs
+
+![Interaktives Netzwerk-Lab](docs/screenshots/interactive-network-lab.png)
+
+Die Labs bilden typische FISI-Szenarien als deterministische Simulationen ab.
+Lernende untersuchen beispielsweise Netzwerkzustände über ein simuliertes
+Terminal, korrigieren Konfigurationen und prüfen anschließend die Erreichbarkeit.
+
+### Trainer- und Administrationsbereich
+
+![Azubi Lab Trainer-Cockpit](docs/screenshots/trainer-cockpit.png)
+
+Trainer und Administratoren erhalten eigene Werkzeuge für Lernfortschritt,
+Skill-Matrix, Lernplanung, Challenges, Teams und Kontenverwaltung.
 
 Die aktuellen Rollen sind:
 
