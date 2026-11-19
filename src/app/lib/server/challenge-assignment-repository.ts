@@ -1,5 +1,7 @@
 import "server-only";
 
+import { assertLearnerAccess } from "./learner-access-repository.ts";
+
 import {
   deriveAssignmentStatus,
   isAssignmentOverdue,
@@ -23,7 +25,7 @@ export type AssignmentReviewSummary = {
   decision: ChallengeReviewDecision;
   feedback: string;
   reviewedAt: Date;
-  reviewedBy: { id: string; displayName: string };
+  reviewedBy: { id: string | null; displayName: string };
 };
 
 export type AssignmentSubmissionSummary = {
@@ -122,12 +124,14 @@ export class ChallengeAssignmentNotFoundError extends Error {
   }
 }
 
-export async function listActiveLearnerOptions() {
+export async function listActiveLearnerOptions(learnerIds?: readonly string[]) {
   const result = await getDatabasePool().query<{ id: string; display_name: string; login_identifier: string }>(
     `SELECT id, display_name, login_identifier
      FROM users
      WHERE role = 'learner' AND disabled_at IS NULL
+       AND ($1::uuid[] IS NULL OR id = ANY($1::uuid[]))
      ORDER BY display_name ASC, login_identifier ASC`,
+    [learnerIds ?? null],
   );
   return result.rows.map((row): LearnerOption => ({
     id: row.id,
@@ -170,6 +174,8 @@ export async function assignChallengeToLearnersWithClient(
     [input.learnerIds],
   );
   if (learnerResult.rowCount !== input.learnerIds.length) throw new AssignmentLearnerInvalidError();
+  await assertLearnerAccess(input.assignedBy, input.learnerIds, client);
+
 
   try {
     const result = await client.query<{ id: string; learner_id: string; assigned_at: Date }>(
@@ -191,8 +197,8 @@ export async function assignChallengeToLearnersWithClient(
   }
 }
 
-export async function listAssignmentsForChallenge(challengeId: string, now = new Date()) {
-  const result = await getDatabasePool().query<AssignmentRow>(`${assignmentSelect} WHERE a.challenge_id = $1 ORDER BY a.assigned_at DESC`, [challengeId]);
+export async function listAssignmentsForChallenge(challengeId: string, now = new Date(), learnerIds?: readonly string[]) {
+  const result = await getDatabasePool().query<AssignmentRow>(`${assignmentSelect} WHERE a.challenge_id = $1 AND ($2::uuid[] IS NULL OR a.learner_id = ANY($2::uuid[])) ORDER BY a.assigned_at DESC`, [challengeId, learnerIds ?? null]);
   return result.rows.map((row) => mapAssignment(row, now));
 }
 
@@ -201,8 +207,8 @@ export async function listAssignmentsForAdminLearner(learnerId: string, now = ne
   return result.rows.map((row) => mapAssignment(row, now));
 }
 
-export async function listAllAssignmentsForAdmin(now = new Date()) {
-  const result = await getDatabasePool().query<AssignmentRow>(`${assignmentSelect} ORDER BY a.assigned_at DESC`);
+export async function listAllAssignmentsForAdmin(now = new Date(), learnerIds?: readonly string[]) {
+  const result = await getDatabasePool().query<AssignmentRow>(`${assignmentSelect} WHERE ($1::uuid[] IS NULL OR a.learner_id = ANY($1::uuid[])) ORDER BY a.assigned_at DESC`, [learnerIds ?? null]);
   return result.rows.map((row) => mapAssignment(row, now));
 }
 
@@ -266,13 +272,13 @@ function mapAssignment(row: AssignmentRow, now: Date): ChallengeAssignment {
         submissionNumber: row.latest_submission_number,
         submittedAt: row.latest_submitted_at,
         submittedAfterDue: wasSubmittedAfterDue({ submittedAt: row.latest_submitted_at, dueAt: row.due_at }),
-        review: row.latest_review_id && row.latest_review_decision && row.latest_reviewed_at && row.latest_reviewer_id && row.latest_reviewer_display_name
+        review: row.latest_review_id && row.latest_review_decision && row.latest_reviewed_at
           ? {
               id: row.latest_review_id,
               decision: row.latest_review_decision,
               feedback: row.latest_review_feedback ?? "",
               reviewedAt: row.latest_reviewed_at,
-              reviewedBy: { id: row.latest_reviewer_id, displayName: row.latest_reviewer_display_name },
+              reviewedBy: { id: row.latest_reviewer_id, displayName: row.latest_reviewer_display_name ?? "Gelöschtes Konto" },
             }
           : null,
       }

@@ -1,4 +1,5 @@
 import "server-only";
+import type { PoolClient } from "pg";
 
 import {
   EVIDENCE_MAX_AGGREGATE_BYTES,
@@ -23,7 +24,7 @@ export type ChallengeSubmissionReview = {
   decision: ChallengeReviewDecision;
   feedback: string;
   reviewedAt: Date;
-  reviewedBy: { id: string; displayName: string };
+  reviewedBy: { id: string | null; displayName: string };
   criterionResults: ChallengeReviewCriterionResult[];
 };
 
@@ -141,71 +142,73 @@ export async function assertOwnedChallengeSubmissionAllowed(assignmentId: string
   if (row.decision === "approved") throw new SubmissionAlreadyApprovedError();
 }
 
-export function createOwnedChallengeSubmission(input: {
+type CreateSubmissionInput = {
   assignmentId: string;
   learnerId: string;
   content: string;
   attachments?: readonly StoredEvidenceFile[];
-}) {
+};
+export function createOwnedChallengeSubmission(input: CreateSubmissionInput) {
+  return withTransaction((client) => createOwnedChallengeSubmissionWithClient(client, input));
+}
+export async function createOwnedChallengeSubmissionWithClient(client: PoolClient, input: CreateSubmissionInput) {
   const attachments = input.attachments ?? [];
   if (attachments.length > EVIDENCE_MAX_FILES
     || attachments.reduce((sum, attachment) => sum + attachment.byteSize, 0) > EVIDENCE_MAX_AGGREGATE_BYTES) {
     throw new SubmissionAttachmentLimitError();
   }
-  return withTransaction(async (client) => {
-    const assignment = await client.query<{ completed_at: Date | null }>(
-      `SELECT completed_at
-       FROM challenge_assignments
-       WHERE id = $1 AND learner_id = $2
-       FOR UPDATE`,
-      [input.assignmentId, input.learnerId],
-    );
-    if (!assignment.rows[0]) throw new SubmissionAssignmentNotFoundError();
-    if (assignment.rows[0].completed_at) throw new LegacyAssignmentCompletedError();
+  const assignment = await client.query<{ completed_at: Date | null }>(
+    `SELECT completed_at
+     FROM challenge_assignments
+     WHERE id = $1 AND learner_id = $2
+     FOR UPDATE`,
+    [input.assignmentId, input.learnerId],
+  );
+  if (!assignment.rows[0]) throw new SubmissionAssignmentNotFoundError();
+  if (assignment.rows[0].completed_at) throw new LegacyAssignmentCompletedError();
 
-    const latest = await client.query<{ submission_number: number; decision: ChallengeReviewDecision | null }>(
-      `SELECT s.submission_number, r.decision
-       FROM challenge_submissions s
-       LEFT JOIN challenge_reviews r ON r.submission_id = s.id
-       WHERE s.assignment_id = $1
-       ORDER BY s.submission_number DESC
-       LIMIT 1`,
-      [input.assignmentId],
-    );
-    const latestSubmission = latest.rows[0];
-    if (latestSubmission && latestSubmission.decision === null) throw new SubmissionPendingReviewError();
-    if (latestSubmission?.decision === "approved") throw new SubmissionAlreadyApprovedError();
+  const latest = await client.query<{ submission_number: number; decision: ChallengeReviewDecision | null }>(
+    `SELECT s.submission_number, r.decision
+     FROM challenge_submissions s
+     LEFT JOIN challenge_reviews r ON r.submission_id = s.id
+     WHERE s.assignment_id = $1
+     ORDER BY s.submission_number DESC
+     LIMIT 1`,
+    [input.assignmentId],
+  );
+  const latestSubmission = latest.rows[0];
+  if (latestSubmission && latestSubmission.decision === null) throw new SubmissionPendingReviewError();
+  if (latestSubmission?.decision === "approved") throw new SubmissionAlreadyApprovedError();
 
-    const submissionNumber = (latestSubmission?.submission_number ?? 0) + 1;
+  const submissionNumber = (latestSubmission?.submission_number ?? 0) + 1;
+  await client.query(
+    `UPDATE challenge_assignments
+     SET started_at = COALESCE(started_at, now())
+     WHERE id = $1`,
+    [input.assignmentId],
+  );
+  const inserted = await client.query<{ id: string; submitted_at: Date }>(
+    `INSERT INTO challenge_submissions (assignment_id, submission_number, content)
+     VALUES ($1, $2, $3)
+     RETURNING id, submitted_at`,
+    [input.assignmentId, submissionNumber, input.content],
+  );
+  for (const attachment of attachments) {
     await client.query(
-      `UPDATE challenge_assignments
-       SET started_at = COALESCE(started_at, now())
-       WHERE id = $1`,
-      [input.assignmentId],
+      `INSERT INTO challenge_submission_attachments
+         (submission_id, storage_key, original_filename, mime_type, byte_size, sha256)
+       VALUES ($1, $2, $3, $4, $5, $6)`,
+      [
+        inserted.rows[0].id,
+        attachment.storageKey,
+        attachment.originalFilename,
+        attachment.mimeType,
+        attachment.byteSize,
+        attachment.sha256,
+      ],
     );
-    const inserted = await client.query<{ id: string; submitted_at: Date }>(
-      `INSERT INTO challenge_submissions (assignment_id, submission_number, content)
-       VALUES ($1, $2, $3)
-       RETURNING id, submitted_at`,
-      [input.assignmentId, submissionNumber, input.content],
-    );
-    for (const attachment of attachments) {
-      await client.query(
-        `INSERT INTO challenge_submission_attachments
-           (submission_id, storage_key, original_filename, mime_type, byte_size, sha256)
-         VALUES ($1, $2, $3, $4, $5, $6)`,
-        [
-          inserted.rows[0].id,
-          attachment.storageKey,
-          attachment.originalFilename,
-          attachment.mimeType,
-          attachment.byteSize,
-          attachment.sha256,
-        ],
-      );
-    }
-    return { id: inserted.rows[0].id, submissionNumber, submittedAt: inserted.rows[0].submitted_at };
-  });
+  }
+  return { id: inserted.rows[0].id, submissionNumber, submittedAt: inserted.rows[0].submitted_at };
 }
 
 export async function listOwnedAssignmentSubmissions(assignmentId: string, learnerId: string) {
@@ -237,13 +240,13 @@ function mapSubmission(row: SubmissionRow): ChallengeSubmission {
     content: row.content,
     submittedAt: row.submitted_at,
     attachments: [],
-    review: row.review_id && row.review_decision && row.reviewed_at && row.reviewed_by && row.reviewer_display_name
+    review: row.review_id && row.review_decision && row.reviewed_at
       ? {
           id: row.review_id,
           decision: row.review_decision,
           feedback: row.review_feedback ?? "",
           reviewedAt: row.reviewed_at,
-          reviewedBy: { id: row.reviewed_by, displayName: row.reviewer_display_name },
+          reviewedBy: { id: row.reviewed_by, displayName: row.reviewer_display_name ?? "Gelöschtes Konto" },
           criterionResults: [],
         }
       : null,

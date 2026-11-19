@@ -1,5 +1,6 @@
 import "server-only";
 
+import { assertLearnerResourceAccess } from "./learner-access-repository.ts";
 import { isUuid } from "../account-security.ts";
 import { canManageAssignments } from "../authorization.ts";
 import { buildCurriculumAssignmentViews } from "../curriculum-planning.ts";
@@ -50,15 +51,21 @@ export async function updateCurriculumAssignmentAsAdmin(input: {
   targetAt: Date | null;
   note: string | null;
 }) {
-  await requireCapability("manageAssignments");
+  const actor = await requireCapability("manageAssignments");
   if (!isUuid(input.assignmentId)) throw new CurriculumPlanningTargetError();
-  return updateCurriculumAssignment(input);
+  return withTransaction(async (client) => {
+    await assertLearnerResourceAccess(actor.id, "curriculum", input.assignmentId, client);
+    return updateCurriculumAssignment(input, client);
+  });
 }
 
 export async function archiveCurriculumAssignmentAsAdmin(assignmentId: string) {
-  await requireCapability("manageAssignments");
+  const actor = await requireCapability("manageAssignments");
   if (!isUuid(assignmentId)) throw new CurriculumPlanningTargetError();
-  return archiveCurriculumAssignment(assignmentId);
+  return withTransaction(async (client) => {
+    await assertLearnerResourceAccess(actor.id, "curriculum", assignmentId, client);
+    return archiveCurriculumAssignment(assignmentId, client);
+  });
 }
 
 export async function getLearnerLearningPlan() {

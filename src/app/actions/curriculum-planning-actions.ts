@@ -1,5 +1,6 @@
 "use server";
 
+import { LearnerScopeError } from "../lib/server/learner-access-repository.ts";
 import { revalidatePath } from "next/cache";
 import { isUuid } from "../lib/account-security.ts";
 import {
@@ -132,11 +133,12 @@ function invalidPlanningTarget(): CurriculumPlanningActionState {
 
 function planningFailure(area: string, error: unknown): CurriculumPlanningActionState {
   if (
-    error instanceof AuthenticationRequiredError
+    error instanceof LearnerScopeError
+    || error instanceof AuthenticationRequiredError
     || error instanceof PasswordChangeRequiredError
     || error instanceof CapabilityAuthorizationError
   ) {
-    return { status: "error", message: "Diese Aktion erfordert ein aktuelles Administrationskonto." };
+    return { status: "error", message: "Diese Aktion erfordert eine aktuelle Berechtigung für das ausgewählte Lernkonto." };
   }
   console.error(`[azubi-lab] ${area} failed`, error instanceof Error ? error.name : "UnknownError");
   return { status: "error", message: "Die Lernplan-Änderung konnte nicht gespeichert werden. Bitte versuche es erneut." };

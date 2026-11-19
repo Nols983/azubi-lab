@@ -220,7 +220,7 @@ test("migration, repository and routes enforce dedicated zero-XP exam architectu
     source("src/app/quiz/page.tsx"),
     readdir(new URL("../db/migrations/", import.meta.url)),
   ]);
-  assert.equal(migrationNames.filter((name) => name.endsWith(".sql")).sort().at(-1), "0021_teams_and_memberships.sql");
+  assert.equal(migrationNames.filter((name) => name.endsWith(".sql")).sort().at(-1), "0024_complete_account_erasure.sql");
   assert.match(migration, /CREATE TABLE ihk_exam_attempts/);
   assert.match(migration, /CREATE TABLE ihk_exam_attempt_questions/);
   assert.match(migration, /WHERE status = 'in_progress'/);

@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 import { learningModules } from "../src/app/data/learning-modules.ts";
 import { buildLearningPathGroups, learningPathPhases } from "../src/app/data/learning-path.ts";
+import { getLearningPhasePresentation, learningPhasePresentations } from "../src/app/lib/learning-phase-presentation.ts";
 import { questionBank } from "../src/app/data/quiz-bank/question-bank.ts";
 import { quizzes } from "../src/app/data/quizzes.ts";
 import {
@@ -258,6 +259,33 @@ test("learning path groups every canonical module exactly once without access ru
   assert.doesNotMatch(moduleRoute, /learningPath|phase/i);
   assert.doesNotMatch(lessonRoute, /learningPath|phase/i);
   assert.doesNotMatch(progression, /learningPath|phase/i);
+});
+
+test("curriculum phase presentation is complete, distinct and keyed only by canonical IDs", () => {
+  const expected = [
+    ["it-grundlagen-arbeitsplatz", "Blau", "workstation", "blue"],
+    ["netzwerke", "Türkis", "network", "teal"],
+    ["systeme-storage-betrieb", "Violett", "server", "violet"],
+    ["sicherheit-datenschutz", "Orange", "shield", "amber"],
+    ["entwicklung-planung-wirtschaft", "Grün", "roadmap", "emerald"],
+  ] as const;
+  assert.deepEqual(Object.keys(learningPhasePresentations), expected.map(([id]) => id));
+  assert.deepEqual(
+    learningPathPhases.map((phase) => {
+      const presentation = getLearningPhasePresentation(phase.id);
+      return [phase.id, presentation.accentLabel, presentation.icon, presentation.progressTone];
+    }),
+    expected,
+  );
+  assert.equal(new Set(Object.values(learningPhasePresentations).map((item) => item.icon)).size, 5);
+  assert.equal(new Set(Object.values(learningPhasePresentations).map((item) => item.progressTone)).size, 5);
+
+  const overview = readFileSync(new URL("../src/app/components/learning/learning-overview.tsx", import.meta.url), "utf8");
+  const moduleCard = readFileSync(new URL("../src/app/components/learning/learning-module-card.tsx", import.meta.url), "utf8");
+  assert.match(overview, /getLearningPhasePresentation\(group\.id\)/);
+  assert.match(moduleCard, /getLearningPhasePresentation\(phaseId\)/);
+  assert.doesNotMatch(overview, /getLearningPhasePresentation\(group\.title\)/);
+  assert.doesNotMatch(moduleCard, /getLearningPhasePresentation\(module\.category\)/);
 });
 
 test("project network helper calculates forward pass, backward pass, float, and critical path", () => {

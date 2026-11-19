@@ -97,7 +97,7 @@ test("dashboard greeting is hydration-safe, updates at boundaries and refreshes 
     source("src/app/lib/server/reward-service.ts"),
     source("src/app/actions/progress-actions.ts"),
   ]);
-  assert.match(page, /<DynamicDashboardGreeting displayName=\{currentUser\?\.displayName\}/);
+  assert.match(page, /<DynamicDashboardGreeting[\s\S]*displayName=\{currentUser\?\.displayName\}[\s\S]*avatarSrc=\{shellProfile\?\.avatar\.src\}[\s\S]*xp=\{shellProfile\?\.xp\}/);
   assert.match(component, /useState\(\(\) => getNeutralDashboardGreeting\(displayName\)\)/);
   assert.match(component, /useEffect/);
   assert.match(component, /setTimeout\(update, getMillisecondsUntilNextGreetingBoundary\(now\)\)/);
@@ -105,6 +105,8 @@ test("dashboard greeting is hydration-safe, updates at boundaries and refreshes 
   assert.match(component, /window\.addEventListener\("focus", update\)/);
   assert.match(component, /clearTimeout/);
   assert.match(component, /break-words/);
+  assert.match(component, /<ProfileAvatar[\s\S]*progressRingPercentage=\{xp\?\.progressPercentage\}/);
+  assert.match(component, /Level \{xp\.level\} · \{new Intl\.NumberFormat\("de-DE"\)\.format\(xp\.totalXp\)\} XP/);
   assert.doesNotMatch(component, /aria-live|role="alert"|suppressHydrationWarning|Math\.random/);
 
   const lessonHistory = rewardService.slice(
@@ -119,6 +121,20 @@ test("dashboard greeting is hydration-safe, updates at boundaries and refreshes 
   assert.match(progressActions, /requireCapability\("recordLearningProgress"\)/);
 });
 
+test("dashboard progress surfaces distinguish unavailable data from a real zero state", async () => {
+  const [continueCard, progressSummary, learningOverview, moduleCard] = await Promise.all([
+    source("src/app/components/dashboard/continue-learning-card.tsx"),
+    source("src/app/components/dashboard/progress-summary.tsx"),
+    source("src/app/components/learning/learning-overview.tsx"),
+    source("src/app/components/learning/learning-module-card.tsx"),
+  ]);
+  assert.match(continueCard, /useProgressSource\(\)/);
+  assert.match(continueCard, /Lernstand nicht verfügbar/);
+  assert.match(progressSummary, /kein falscher 0-%-Wert/);
+  assert.match(learningOverview, /progressSource\.ready && !progressSource\.error && progressSource\.mode !== "preview"/);
+  assert.match(moduleCard, /Persönlicher Fortschritt wird hier nicht angezeigt/);
+});
+
 test("private account projection maps role labels and exposes only intended account fields", () => {
   const createdAt = new Date("2026-09-15T12:00:00.000Z");
   const account = buildPrivateProfileAccount({
@@ -131,15 +147,15 @@ test("private account projection maps role labels and exposes only intended acco
     displayName: "Anna Beispiel",
     login: "anna",
     role: "learner",
-    roleLabel: "Lernender",
+    roleLabel: "Azubi",
     status: "active",
     statusLabel: "Aktiv",
     createdAt,
     initials: "AB",
     context: "Dein privates Lernprofil und dein persönlicher Lernstand.",
   });
-  assert.equal(buildPrivateProfileAccount({ displayName: "I", login: "i", role: "instructor", createdAt }).roleLabel, "Werkstattleiter");
-  assert.equal(buildPrivateProfileAccount({ displayName: "B", login: "b", role: "observer", createdAt }).roleLabel, "Betrachter");
+  assert.equal(buildPrivateProfileAccount({ displayName: "I", login: "i", role: "instructor", createdAt }).roleLabel, "Teamleiter");
+  assert.equal(buildPrivateProfileAccount({ displayName: "B", login: "b", role: "observer", createdAt }).roleLabel, "Beobachter");
   assert.equal(buildPrivateProfileAccount({ displayName: "A", login: "a", role: "admin", createdAt }).roleLabel, "Administrator");
   for (const prohibited of ["id", "passwordHash", "authVersion", "disabledAt", "resetToken", "endpoint", "vapid"]) {
     assert.equal(Object.hasOwn(account, prohibited), false);

@@ -40,6 +40,16 @@ export async function listAdminAccountAvatarViews(): Promise<readonly AdminAccou
   }));
 }
 
+export async function getAdminAccountAvatarView(account: AccountSummaryRecord): Promise<AdminAccountAvatarView> {
+  await requireCapability("viewUserAvatars");
+  try {
+    const info = await new LocalFilesystemProfileImageStorage().metadata(account.id);
+    return { ...withoutAvatar(account), avatar: info ? { src: adminAvatarSrc(account.id, info) } : {} };
+  } catch {
+    return withoutAvatar(account);
+  }
+}
+
 export async function readAccountAvatarAsAdmin(targetUserId: unknown) {
   await requireCapability("viewUserAvatars");
   const target = await resolveTarget(targetUserId);

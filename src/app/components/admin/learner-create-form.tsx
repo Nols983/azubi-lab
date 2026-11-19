@@ -9,7 +9,7 @@ import { ACCOUNT_CREATION_ROLES, ACCOUNT_ROLE_LABELS } from "../../lib/auth-type
 
 const initialState: ProvisioningActionState = { status: "idle", message: "" };
 
-export function LearnerCreateForm() {
+export function LearnerCreateForm({ teams = [] }: { teams?: readonly { id: string; name: string }[] }) {
   const [state, action] = useActionState(createLearnerAction, initialState);
   const statusRef = useRef<HTMLDivElement>(null);
 
@@ -23,7 +23,7 @@ export function LearnerCreateForm() {
         <p className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 font-semibold text-slate-900">{state.message}</p>
         <TemporaryPasswordPanel password={state.temporaryPassword} />
         <div className="flex flex-wrap gap-4">
-          <Link href={state.role === "observer" ? "/admin/konten" : `/admin/lernende/${state.learnerId}`} className="inline-flex min-h-11 items-center rounded-xl bg-blue-950 px-5 py-2 text-sm font-bold text-white hover:bg-blue-900 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-blue-600">Konto öffnen</Link>
+          <Link href={state.role !== "learner" ? "/admin/konten" : `/admin/lernende/${state.learnerId}`} className="inline-flex min-h-11 items-center rounded-xl bg-blue-950 px-5 py-2 text-sm font-bold text-white hover:bg-blue-900 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-blue-600">Konto öffnen</Link>
           <Link href="/admin" className="inline-flex min-h-11 items-center rounded-xl px-2 text-sm font-bold text-blue-700 underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-blue-600">Zur Übersicht</Link>
         </div>
       </div>
@@ -48,8 +48,20 @@ export function LearnerCreateForm() {
         <select id="role" name="role" defaultValue="learner" className="mt-2 min-h-12 w-full rounded-xl border border-slate-300 bg-white px-4 text-base text-slate-950 shadow-sm outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-200">
           {ACCOUNT_CREATION_ROLES.map((role) => <option key={role} value={role}>{ACCOUNT_ROLE_LABELS[role]}</option>)}
         </select>
-        <p className="mt-2 text-sm leading-6 text-slate-600">Betrachter können freigegebene Inhalte nur in der Vorschau erkunden und erzeugen keinen Lernfortschritt.</p>
+        <p className="mt-2 text-sm leading-6 text-slate-600">Beobachter können freigegebene Inhalte nur in der Vorschau erkunden und erzeugen keinen Lernfortschritt.</p>
       </div>
+      <fieldset className="space-y-3">
+        <legend className="text-sm font-bold text-slate-800">Teamzugehörigkeit und Teamfunktion</legend>
+        <p className="text-sm text-slate-600">Wähle je Team eine Funktion. Nur Teamleiter mit Teamleitung erhalten Zugriff auf die Azubis des Teams.</p>
+        {teams.length === 0 && <p className="text-sm text-slate-600">Keine aktiven Teams vorhanden.</p>}
+        {teams.map((team) => <label key={team.id} className="block text-sm font-semibold text-slate-800">{team.name}
+          <select name="memberships" defaultValue="" className="mt-2 min-h-12 w-full rounded-xl border border-slate-300 bg-white px-4 text-slate-950">
+            <option value="">Keine Zuordnung</option>
+            <option value={`${team.id}:member`}>Mitglied</option>
+            <option value={`${team.id}:manager`}>Teamleitung</option>
+          </select>
+        </label>)}
+      </fieldset>
       <div ref={statusRef} tabIndex={-1} aria-live="assertive" className="focus:outline-none">
         {state.status === "error" && <p className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm font-semibold text-slate-900">{state.message}</p>}
       </div>

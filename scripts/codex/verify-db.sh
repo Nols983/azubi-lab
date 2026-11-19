@@ -116,9 +116,13 @@ declare -A SUITE_SCRIPTS=(
     [labs]="scripts/test-interactive-lab-database.mts"
     [profile-moderation]="scripts/test-profile-moderation-database.mts"
     [teams]="scripts/test-team-database.mts"
+    [team-access]="scripts/test-team-authorization-database.mts"
+    [team-actions]="scripts/test-team-actions.mts"
+    [account-directory]="scripts/test-account-directory-database.mts"
 )
 
 declare -A SUITE_DESCRIPTIONS=(
+    [account-directory]="Benutzerverzeichnis und sichere Kontolöschung"
     [accounts]="Konten und Administration"
     [challenges]="Challenges und Evidence-Persistenz"
     [planning]="Curriculum- und Trainer-Planung"
@@ -131,6 +135,8 @@ declare -A SUITE_DESCRIPTIONS=(
     [labs]="Interactive Labs"
     [profile-moderation]="Profilbild-Moderation und Audit"
     [teams]="Teams und Mitgliedschaften"
+    [team-access]="Teamrechte, Provisionierung und Themenvorschläge"
+    [team-actions]="Isolierte HTTP-UAT für Teamrechte und Server Actions (Port 3000)"
 )
 
 SUITE_ORDER=(
@@ -144,7 +150,10 @@ SUITE_ORDER=(
     web-push
     security
     labs
+    profile-moderation
     teams
+    team-access
+    account-directory
 )
 
 list_suites() {
@@ -154,6 +163,7 @@ list_suites() {
     for suite in "${SUITE_ORDER[@]}"; do
         printf '  %-14s %s\n' "$suite" "${SUITE_DESCRIPTIONS[$suite]}"
     done
+    printf '  %-14s %s\n' "team-actions" "${SUITE_DESCRIPTIONS[team-actions]} (optional)"
 }
 
 PHASE="argument parsing"

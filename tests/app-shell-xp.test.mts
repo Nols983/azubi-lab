@@ -18,6 +18,22 @@ test("root layout passes the authoritative shell profile into AppShell", async (
   assert.match(service, /user\.role !== "learner"/);
   assert.match(service, /getLearnerRewardState\(user\.id\)/);
   assert.match(service, /roleLabel: ACCOUNT_ROLE_LABELS\.learner/);
+  assert.match(service, /pinnedBadges: rewards\.pinnedBadges/);
+});
+
+test("dashboard achievement preview reuses canonical pinned rewards without mutations", async () => {
+  const [dashboard, xpCard, service] = await Promise.all([
+    source("src/app/page.tsx"),
+    source("src/app/components/xp/xp-summary.tsx"),
+    source("src/app/lib/server/profile-service.ts"),
+  ]);
+  assert.match(dashboard, /pinnedBadges=\{shellProfile\.pinnedBadges\}/);
+  assert.match(xpCard, /pinnedBadges\.map\(\(badge\)/);
+  assert.match(xpCard, /<BadgeCard badge=\{badge\} variant="compact" pinned \/>/);
+  assert.match(service, /pinnedBadges: rewards\.pinnedBadges/);
+  for (const content of [dashboard, xpCard, service]) {
+    assert.doesNotMatch(content, /selectProfileBadges|grant|awardXp|insertXpEvent/i);
+  }
 });
 
 test("only an authenticated active learner receives the AppShell XP projection", () => {

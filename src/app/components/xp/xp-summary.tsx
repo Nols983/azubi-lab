@@ -1,13 +1,15 @@
 import type { LevelProgress } from "../../lib/xp-domain.ts";
-import type { NextMilestone } from "../../lib/progression-rewards.ts";
+import type { NextMilestone, RewardCollectionItem } from "../../lib/progression-rewards.ts";
+import { BadgeCard } from "../profile/badge-card.tsx";
 import { NextMilestones } from "../profile/next-milestones.tsx";
 import { ProgressBar } from "../progress-bar.tsx";
 import Link from "next/link";
 
-export function DashboardXpCard({ progress, activeTitle, milestones = [] }: {
+export function DashboardXpCard({ progress, activeTitle, milestones = [], pinnedBadges = [] }: {
   progress: LevelProgress;
   activeTitle?: string;
   milestones?: readonly NextMilestone[];
+  pinnedBadges?: readonly RewardCollectionItem[];
 }) {
   return (
     <section aria-labelledby="dashboard-xp-heading" className="rounded-2xl border border-blue-200 bg-white p-5 shadow-sm sm:p-6">
@@ -24,6 +26,14 @@ export function DashboardXpCard({ progress, activeTitle, milestones = [] }: {
             {formatXp(progress.xpIntoCurrentLevel)} / {formatXp(progress.xpRequiredForNextLevel)} XP bis Level {progress.level + 1}
           </p>
           <Link href="/profil" className="mt-4 inline-flex min-h-11 items-center text-sm font-bold text-blue-800 underline decoration-blue-300 underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600">Titel und Abzeichen ansehen</Link>
+          {pinnedBadges.length > 0 && (
+            <div className="mt-5 border-t border-slate-100 pt-5">
+              <p className="text-xs font-black uppercase tracking-[0.12em] text-slate-500">Angeheftete Abzeichen</p>
+              <ul className="mt-3 flex flex-wrap gap-2">
+                {pinnedBadges.map((badge) => <li key={badge.id} className="min-w-0 max-w-full"><BadgeCard badge={badge} variant="compact" pinned /></li>)}
+              </ul>
+            </div>
+          )}
         </div>
         <NextMilestones milestones={milestones} compact />
       </div>

@@ -1,8 +1,9 @@
 import "server-only";
 
+import { assertLearnerAccess, listAccessibleLearnerIds } from "./learner-access-repository.ts";
 import { createHash } from "node:crypto";
 import { isUuid } from "../account-security.ts";
-import { canManageChallenges, canReviewSubmissions, canViewChallengeCatalogue } from "../authorization.ts";
+import { canManageChallenges, canViewChallengeCatalogue } from "../authorization.ts";
 import type { ChallengeInput, ChallengeStatus } from "../challenge-domain.ts";
 import {
   challengeAssignmentNotificationCandidate,
@@ -28,13 +29,13 @@ import {
 } from "./challenge-comment-repository.ts";
 import {
   createChallengeReviewWithClient,
-  countPendingChallengeReviews,
   findSubmissionReviewDetail,
   listPendingChallengeReviews,
 } from "./challenge-review-repository.ts";
 import {
   assertOwnedChallengeSubmissionAllowed,
-  createOwnedChallengeSubmission,
+  createOwnedChallengeSubmissionWithClient,
+  SubmissionAssignmentNotFoundError,
   listOwnedAssignmentSubmissions,
 } from "./challenge-submission-repository.ts";
 import {
@@ -50,6 +51,7 @@ import {
   cleanupStoredEvidence,
   LocalFilesystemEvidenceStorage,
   storeEvidenceFiles,
+  type StoredEvidenceFile,
 } from "./evidence-storage.ts";
 import { getCurrentDatabaseUser, requireAuthenticatedUser, requireCapability, requireLearnerUser } from "./current-user.ts";
 import { withTransaction } from "./db.ts";
@@ -60,27 +62,29 @@ import { insertNotificationCandidatesWithClient } from "./notification-repositor
 import { dispatchPersistedNotificationPushBestEffort } from "./notification-push-service.ts";
 
 export async function getAdminChallengeList(status?: ChallengeStatus) {
-  await requireCapability("manageChallenges");
-  return listChallengeDefinitions(status);
+  const actor = await requireCapability("manageChallenges");
+  return listChallengeDefinitions(status, actor.id);
 }
 
 export async function getAdminChallengeManagement(status?: ChallengeStatus) {
-  await requireCapability("manageChallenges");
+  const actor = await requireCapability("manageChallenges");
+  const learnerIds = await listAccessibleLearnerIds(actor.id);
   const [challenges, pendingReviews] = await Promise.all([
-    listChallengeDefinitions(status),
-    listPendingChallengeReviews(),
+    listChallengeDefinitions(status, actor.id),
+    listPendingChallengeReviews(learnerIds),
   ]);
   return { challenges, pendingReviews };
 }
 
 export async function getAdminChallengeDetail(challengeId: unknown) {
-  await requireCapability("manageChallenges");
+  const actor = await requireCapability("manageChallenges");
+  const learnerIds = await listAccessibleLearnerIds(actor.id);
   if (!isUuid(challengeId)) return undefined;
   const challenge = await findChallengeDefinitionById(challengeId);
   if (!challenge) return undefined;
   const [assignments, activeLearners] = await Promise.all([
-    listAssignmentsForChallenge(challenge.id),
-    listActiveLearnerOptions(),
+    listAssignmentsForChallenge(challenge.id, new Date(), learnerIds),
+    listActiveLearnerOptions(learnerIds),
   ]);
   const assignedLearnerIds = new Set(assignments.map((assignment) => assignment.learner.id));
   return {
@@ -168,21 +172,30 @@ export async function submitOwnedLearnerAssignment(
   const learner = await requireLearnerUser();
   await assertOwnedChallengeSubmissionAllowed(assignmentId, learner.id);
   const files = await validateEvidenceFiles(fileEntries);
-  const stored = await storeEvidenceFiles(files);
+  let stored: StoredEvidenceFile[] = [];
+  let submission;
   try {
-    const submission = await createOwnedChallengeSubmission({ assignmentId, learnerId: learner.id, content, attachments: stored });
-    await notifyTrainersAboutSubmissionBestEffort(submission.id);
-    return submission;
+    submission = await withTransaction(async (client) => {
+      // Serialize all private file writes with account deletion. A request with
+      // stale authentication must not create files after the user was removed.
+      const account = await client.query(`SELECT id FROM users WHERE id=$1 AND auth_version=$2
+        AND role='learner' AND disabled_at IS NULL AND must_change_password=false FOR UPDATE`, [learner.id, learner.authVersion]);
+      if (!account.rowCount) throw new SubmissionAssignmentNotFoundError();
+      stored = await storeEvidenceFiles(files);
+      return createOwnedChallengeSubmissionWithClient(client, { assignmentId, learnerId: learner.id, content, attachments: stored });
+    });
   } catch (error) {
     await cleanupStoredEvidence(stored);
     throw error;
   }
+  await notifyTrainersAboutSubmissionBestEffort(submission.id);
+  return submission;
 }
 
 export async function getAdminSubmissionReview(submissionId: unknown) {
-  await requireCapability("reviewSubmissions");
+  const actor = await requireCapability("reviewSubmissions");
   if (!isUuid(submissionId)) return undefined;
-  const detail = await findSubmissionReviewDetail(submissionId);
+  const detail = await findSubmissionReviewDetail(submissionId, actor.id);
   if (!detail) return undefined;
   return { ...detail, comments: await listAssignmentComments(detail.assignment.id) };
 }
@@ -228,7 +241,6 @@ export async function getAuthorizedEvidenceDownload(attachmentId: unknown) {
   const attachment = await findAuthorizedAttachment({
     attachmentId,
     userId: user.id,
-    canReviewAll: canReviewSubmissions(user.role),
   });
   if (!attachment) return undefined;
   try {
@@ -246,7 +258,8 @@ export async function getAuthorizedEvidenceDownload(attachmentId: unknown) {
 }
 
 export async function getAdminLearnerChallengeView(learnerId: string) {
-  await requireCapability("viewLearnerProgress");
+  const actor = await requireCapability("viewLearnerProgress");
+  await assertLearnerAccess(actor.id, [learnerId]);
   const assignments = await listAssignmentsForAdminLearner(learnerId);
   return { assignments, counts: summarizeAssignmentStatuses(assignments) };
 }
@@ -256,7 +269,11 @@ export async function getDashboardChallengeView() {
   const user = await getCurrentDatabaseUser();
   if (!user) return { audience: "anonymous" as const };
   if (user.mustChangePassword) return { audience: "password-change" as const };
-  if (canManageChallenges(user.role)) return { audience: "admin" as const, pendingReviews: await countPendingChallengeReviews() };
+  if (canManageChallenges(user.role)) {
+    const learnerIds = await listAccessibleLearnerIds(user.id);
+    const reviews = await listPendingChallengeReviews(learnerIds);
+    return { audience: "admin" as const, pendingReviews: reviews.length };
+  }
   if (canViewChallengeCatalogue(user.role)) return { audience: "preview" as const };
   if (user.role === "learner") return { audience: "learner" as const, ...await readLearnerChallengeSummary(user.id) };
   return { audience: "unavailable" as const };

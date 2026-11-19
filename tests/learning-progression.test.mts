@@ -190,7 +190,7 @@ test("dedicated immutable progression history covers XP and non-XP completion pa
     readFile(new URL("../src/app/lernen/[slug]/[lessonSlug]/page.tsx", import.meta.url), "utf8"),
     readFile(new URL("../src/app/lernen/[slug]/quiz/page.tsx", import.meta.url), "utf8"),
   ]);
-  assert.equal(migrationNames.filter((name) => name.endsWith(".sql")).sort().at(-1), "0021_teams_and_memberships.sql");
+  assert.equal(migrationNames.filter((name) => name.endsWith(".sql")).sort().at(-1), "0024_complete_account_erasure.sql");
   assert.match(migration, /CREATE TABLE lesson_completion_history/);
   assert.match(migration, /PRIMARY KEY \(user_id, module_slug, lesson_slug\)/);
   assert.match(migration, /BEFORE UPDATE ON lesson_completion_history/);

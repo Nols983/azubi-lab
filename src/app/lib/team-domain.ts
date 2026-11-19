@@ -1,3 +1,4 @@
+import { isUuid } from "./account-security.ts";
 import type { AccountRole } from "./auth-types.ts";
 
 export const TEAM_ROLES = ["member", "manager"] as const;
@@ -100,4 +101,21 @@ export function isRankedTeamMember(role: AccountRole, teamActive: boolean, disab
 
 function normalizeSpaces(value: unknown) {
   return typeof value === "string" ? value.trim().replace(/\s+/gu, " ") : "";
+}
+
+export type InitialTeamMembership = { teamId: string; teamRole: TeamRole };
+
+export function parseInitialTeamMemberships(values: readonly unknown[]): InitialTeamMembership[] | undefined {
+  const memberships: InitialTeamMembership[] = [];
+  const seen = new Set<string>();
+  for (const value of values) {
+    if (typeof value !== "string") return undefined;
+    const [teamId, role, extra] = value.split(":");
+    if (extra !== undefined || !isUuid(teamId)) return undefined;
+    const teamRole = parseTeamRole(role);
+    if (!teamRole || seen.has(teamId.toLowerCase())) return undefined;
+    seen.add(teamId.toLowerCase());
+    memberships.push({ teamId, teamRole });
+  }
+  return memberships;
 }

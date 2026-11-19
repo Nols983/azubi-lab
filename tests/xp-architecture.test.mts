@@ -12,7 +12,7 @@ test("0011 is an immutable learner-only XP ledger extended by 0019 for Labs", as
     source("db/migrations/0019_progression_rewards_and_profile.sql"),
     readdir(new URL("../db/migrations/", import.meta.url)),
   ]);
-  assert.equal(migrationNames.filter((name) => name.endsWith(".sql")).sort().at(-1), "0021_teams_and_memberships.sql");
+  assert.equal(migrationNames.filter((name) => name.endsWith(".sql")).sort().at(-1), "0024_complete_account_erasure.sql");
   assert.match(migration, /source_type IN \('lesson', 'module_quiz', 'challenge', 'practice_quiz'\)/);
   assert.match(labMigration, /source_type IN \('lesson', 'module_quiz', 'challenge', 'practice_quiz', 'lab'\)/);
   assert.match(labMigration, /ON CONFLICT \(user_id, source_type, source_key\) DO NOTHING/);

@@ -19,6 +19,7 @@ const suffix = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 const prefix = `notification-db-${suffix}`;
 const userIds: string[] = [];
 const challengeIds: string[] = [];
+const teamIds: string[] = [];
 const now = new Date("2026-08-25T12:00:00.000Z");
 
 try {
@@ -34,6 +35,13 @@ try {
   const disabledAdmin = await insertUser(`${prefix}-admin-disabled`, "Notification Disabled Admin", "admin", true);
   const learnerA = await insertUser(`${prefix}-learner-a`, "Notification Learner A", "learner");
   const learnerB = await insertUser(`${prefix}-learner-b`, "Notification Learner B", "learner");
+
+  const team = (await pool.query<{ id: string }>(
+    "INSERT INTO teams (name, slug, created_by_user_id) VALUES ($1, $2, $3) RETURNING id",
+    [`Notification ${suffix}`, `notification-${suffix}`, adminA],
+  )).rows[0];
+  teamIds.push(team.id);
+  await pool.query("INSERT INTO team_members (team_id, user_id, team_role) VALUES ($1, $2, 'manager'), ($1, $3, 'member'), ($1, $4, 'member')", [team.id, instructor, learnerA, learnerB]);
 
   await createCurriculumFixture(learnerA, adminA, "dns", new Date("2026-08-27T12:00:00.000Z"));
   await createCurriculumFixture(learnerA, adminA, "dhcp", new Date("2026-08-26T00:00:00.000Z"));
@@ -94,7 +102,7 @@ try {
   assert.equal(await notificationCount(disabledAdmin, "activity-digest:2026-08-24"), 0);
   assert.equal(await notificationCount(adminA, "activity-digest:2026-08-24"), 1);
   assert.equal(await notificationCount(adminB, "activity-digest:2026-08-24"), 1);
-  assert.equal(await notificationCount(instructor, "activity-digest:2026-08-24"), 1);
+  assert.equal(await notificationCount(instructor, "activity-digest:2026-08-24"), 0);
   const digest = (await pool.query<{ message: string }>("SELECT message FROM notifications WHERE user_id = $1 AND dedupe_key = 'activity-digest:2026-08-24'", [adminA])).rows[0];
   assert.match(digest.message, /abgeschlossene Lektionen/);
   assert.match(digest.message, /Quiz-Abgaben/);
@@ -160,6 +168,7 @@ try {
     fixtureNotifications: fixtureCountAfterFirst,
   });
 } finally {
+  if (teamIds.length) await pool.query("DELETE FROM teams WHERE id = ANY($1::uuid[])", [teamIds]);
   if (userIds.length > 0) {
     await pool.query("DELETE FROM notifications WHERE user_id = ANY($1::uuid[])", [userIds]);
     await pool.query("DELETE FROM challenge_reviews WHERE submission_id IN (SELECT submission.id FROM challenge_submissions submission JOIN challenge_assignments assignment ON assignment.id = submission.assignment_id WHERE assignment.challenge_id = ANY($1::uuid[]))", [challengeIds]);

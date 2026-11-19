@@ -1,5 +1,12 @@
 "use server";
 
+import { parseInitialTeamMemberships } from "../lib/team-domain";
+import type { AccountRole } from "../lib/auth-types";
+import { deleteAccountAsAdmin } from "../lib/server/account-deletion-service";
+import { cleanupDeletedAccountImages } from "../lib/server/account-file-cleanup";
+import { AccountDeletionBlockedError, AccountDeletionConfirmationError, AccountDeletionTargetError } from "../lib/server/account-deletion-repository";
+import { ACCOUNT_DELETION_REASON_LABELS } from "../lib/account-deletion";
+import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { isUuid, parseAccountCreationRole, parseAccountRole, validateLearnerAccountInput } from "../lib/account-security";
 import { canChangeAccountRole, canManageAccountStatus } from "../lib/authorization";
@@ -33,7 +40,7 @@ export type ProvisioningActionState = {
   message: string;
   fieldErrors?: { displayName?: string; login?: string };
   learnerId?: string;
-  role?: "learner" | "observer";
+  role?: AccountRole;
   temporaryPassword?: string;
 };
 
@@ -54,20 +61,24 @@ export async function createLearnerAction(
   try {
     await requireAdminUser();
     const role = parseAccountCreationRole(formData.get("role"));
-    if (!hasOnlyFormFields(formData, ["displayName", "login", "role"]) || !role) {
+    if (!hasOnlyFormFields(formData, ["displayName", "login", "memberships", "role"]) || !role) {
       return { status: "error", message: "Wähle einen gültigen Kontotyp." };
     }
+    const memberships = parseInitialTeamMemberships(formData.getAll("memberships").filter((value) => value !== ""));
+    if (!memberships) return { status: "error", message: "Prüfe die Teamzuordnungen." };
     const validated = validateLearnerAccountInput(formData.get("displayName"), formData.get("login"));
     if (!validated.valid) {
       return { status: "error", message: "Prüfe die markierten Angaben.", fieldErrors: validated.errors };
     }
     const temporaryPassword = generateTemporaryPassword();
     const passwordHash = await hashPassword(temporaryPassword);
-    const learner = await createManagedAccount({ ...validated.value, passwordHash, role });
+    const learner = await createManagedAccount({ ...validated.value, passwordHash, role, memberships });
     revalidatePath("/admin");
+    revalidatePath("/admin/konten");
+    revalidatePath("/admin/teams");
     return {
       status: "success",
-      message: role === "observer" ? "Das Betrachterkonto wurde angelegt." : "Das Lernkonto wurde angelegt.",
+      message: "Das Konto wurde einschließlich der Teamzuordnungen angelegt.",
       learnerId: learner.id,
       role,
       temporaryPassword,
@@ -84,6 +95,35 @@ export async function createLearnerAction(
   }
 }
 
+export async function deleteAccountAction(userId: string, _state: AdminMutationActionState, formData: FormData): Promise<AdminMutationActionState> {
+  let cleanupPending = false;
+  try {
+    await requireAdminUser();
+    if (!isUuid(userId) || !hasOnlyFormFields(formData, ["confirmed", "confirmationLogin"])) return invalidTarget();
+    const result = await deleteAccountAsAdmin({ targetUserId: userId, confirmed: formData.get("confirmed"), confirmationLogin: formData.get("confirmationLogin") });
+    revalidatePath("/admin", "layout");
+    revalidatePath("/teams", "layout");
+    revalidatePath("/community", "layout");
+    cleanupPending = result.cleanupPending;
+  } catch (error) {
+    if (error instanceof AccountDeletionConfirmationError) return { status: "error", message: "Bestätige die endgültige Löschung und gib die aktuelle Anmeldekennung exakt ein." };
+    if (error instanceof AccountDeletionBlockedError) return { status: "error", message: `${error.reasons.map((reason) => ACCOUNT_DELETION_REASON_LABELS[reason]).join(" ")}` };
+    if (error instanceof AccountDeletionTargetError) return invalidTarget();
+    return adminActionFailure("delete account", error);
+  }
+  redirect(`/admin/konten?deleted=1${cleanupPending ? "&cleanup=pending" : ""}`);
+}
+
+export async function retryAccountFileCleanupAction(_state: AdminMutationActionState, formData: FormData): Promise<AdminMutationActionState> {
+  try {
+    await requireAdminUser();
+    if (!hasOnlyFormFields(formData, [])) return invalidTarget();
+    const result = await cleanupDeletedAccountImages();
+    revalidatePath("/admin/konten");
+    return { status: result.pending ? "error" : "success", message: result.pending ? "Einige private Dateien konnten noch nicht bereinigt werden. Bitte prüfe den privaten Speicher und versuche es erneut." : "Die nächste Gruppe ausstehender Dateien wurde bereinigt." };
+  } catch (error) { return adminActionFailure("retry account file cleanup", error); }
+}
+
 export async function generatePasswordResetLinkAction(
   userId: string,
   _state: AdminMutationActionState,
@@ -93,6 +133,7 @@ export async function generatePasswordResetLinkAction(
   void _formData;
   try {
     const resetUrl = await createPasswordResetLinkAsAdmin(userId);
+    revalidatePath(`/admin/konten/${userId}`);
     revalidatePath(`/admin/lernende/${userId}`);
     return {
       status: "success",
@@ -117,6 +158,7 @@ export async function changeAccountRoleAction(
     const changed = await changeAccountRole({ actorId: admin.id, targetUserId: userId, role });
     revalidatePath("/admin");
     revalidatePath("/admin/konten");
+    revalidatePath(`/admin/konten/${userId}`);
     revalidatePath(`/admin/lernende/${userId}`);
     return {
       status: "success",
@@ -154,6 +196,7 @@ export async function setAccountDisabledAction(
     const result = await setAccountDisabled({ actorId: admin.id, targetUserId: userId, disabled });
     revalidatePath("/admin");
     revalidatePath("/admin/konten");
+    revalidatePath(`/admin/konten/${userId}`);
     revalidatePath("/admin/lerninhalte");
     if (result.targetRole === "learner") revalidatePath(`/admin/lernende/${userId}`);
     return {

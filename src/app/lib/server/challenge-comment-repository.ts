@@ -1,7 +1,8 @@
 import "server-only";
 
+import { assertLearnerResourceAccess } from "./learner-access-repository.ts";
 import type { AccountRole } from "../auth-types.ts";
-import { getDatabasePool } from "./db.ts";
+import { getDatabasePool, withTransaction } from "./db.ts";
 
 export type ChallengeAssignmentComment = {
   id: string;
@@ -62,16 +63,15 @@ export async function createOwnedLearnerComment(input: { assignmentId: string; l
 }
 
 export async function createAdminComment(input: { assignmentId: string; adminId: string; body: string }) {
-  const result = await getDatabasePool().query<{ id: string; created_at: Date }>(
-    `INSERT INTO challenge_assignment_comments (assignment_id, author_id, body)
-     SELECT a.id, $2, $3
-     FROM challenge_assignments a
-     WHERE a.id = $1
-     RETURNING id, created_at`,
-    [input.assignmentId, input.adminId, input.body],
-  );
-  if (!result.rows[0]) throw new CommentAssignmentNotFoundError();
-  return { id: result.rows[0].id, createdAt: result.rows[0].created_at };
+  return withTransaction(async (client) => {
+    await assertLearnerResourceAccess(input.adminId, "challenge", input.assignmentId, client);
+    const result = await client.query<{ id: string; created_at: Date }>(
+      `INSERT INTO challenge_assignment_comments (assignment_id, author_id, body)
+       VALUES ($1, $2, $3) RETURNING id, created_at`,
+      [input.assignmentId, input.adminId, input.body],
+    );
+    return { id: result.rows[0].id, createdAt: result.rows[0].created_at };
+  });
 }
 
 const commentSelect = `SELECT comment.id, comment.assignment_id, comment.body, comment.created_at,
