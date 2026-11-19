@@ -99,7 +99,7 @@ export function MembershipControls({
   return (
     <div className="mt-3 flex flex-col gap-3 border-t border-slate-100 pt-3">
       {active && (
-        <form action={roleAction} className="flex flex-col gap-2 sm:flex-row sm:items-end">
+        <form action={roleAction} className="flex flex-col gap-2 xl:flex-row xl:items-end">
           <TeamRoleSelect key={teamRole} defaultValue={teamRole} compact />
           <button type="submit" disabled={rolePending} className={secondaryButton}>{rolePending ? "Speichern …" : "Rolle speichern"}</button>
         </form>
@@ -139,7 +139,7 @@ function TeamFields({ state, name = "", description = "", idSuffix = "new" }: {
 
 function TeamRoleSelect({ defaultValue = "member", compact = false }: { defaultValue?: TeamRole; compact?: boolean }) {
   return (
-    <label className={`text-sm font-bold text-slate-800 ${compact ? "min-w-44" : ""}`}>Teamrolle
+    <label className={`text-sm font-bold text-slate-800 ${compact ? "min-w-0 flex-1" : ""}`}>Teamrolle
       <select name="teamRole" defaultValue={defaultValue} className={inputClass}>
         {TEAM_ROLES.map((role) => <option key={role} value={role}>{TEAM_ROLE_LABELS[role]}</option>)}
       </select>

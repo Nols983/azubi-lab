@@ -21,7 +21,9 @@ export default async function AdminPage() {
         <p className="mt-3 max-w-2xl leading-7 text-slate-600">Wähle den passenden Arbeitsbereich oder prüfe kurz, wo Unterstützung nötig ist.</p>
       </header>
 
+      {access.user.role === "instructor" && dashboard.learnerReports.length === 0 && <p className="rounded-xl border border-slate-200 bg-white p-4 text-slate-700">Keine Azubis in geleiteten aktiven Teams. Eine einfache Teammitgliedschaft gewährt keine Verwaltungsrechte.</p>}
       <nav aria-label="Arbeitsbereiche" className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <DashboardLink href="/admin/themenvorschlaege" title="Themenvorschläge" detail="Ausbildungsthemen einreichen und Rückmeldungen einsehen." />
         <DashboardLink href="/admin/lernende" title="Lernende" detail="Fortschritt, Labs, Level und letzte Aktivität überblicken." />
         <DashboardLink href="/admin/skill-matrix" title="Skill-Matrix" detail="Lernstand je Modul gezielt vergleichen und filtern." />
         <DashboardLink href="/admin/lernende?focus=curriculum-active" title="Lernplanung" detail="Aktive Modulzuweisungen und Zieltermine bearbeiten." />

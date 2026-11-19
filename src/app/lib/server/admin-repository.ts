@@ -2,6 +2,7 @@ import "server-only";
 
 import type { PoolClient } from "pg";
 import { parseAccountRole } from "../account-security.ts";
+import { parseInitialTeamMemberships, type InitialTeamMembership } from "../team-domain.ts";
 import type { AccountCreationRole, AccountRole } from "../auth-types.ts";
 import { getDatabasePool, withTransaction } from "./db.ts";
 
@@ -69,12 +70,13 @@ export type AccountStatusChangeResult = {
   targetRole: AccountRole;
 };
 
-export async function listLearnerAccounts() {
+export async function listLearnerAccounts(learnerIds?: readonly string[]) {
   const result = await getDatabasePool().query<LearnerAccountRow>(
     `SELECT id, login_identifier, display_name, role, must_change_password, disabled_at, created_at
      FROM users
-     WHERE role = 'learner'
+     WHERE role = 'learner' AND ($1::uuid[] IS NULL OR id = ANY($1::uuid[]))
      ORDER BY display_name ASC, login_identifier ASC`,
+    [learnerIds ?? null],
   );
   return result.rows.map(mapLearnerAccount);
 }
@@ -112,6 +114,7 @@ export async function createManagedAccount(input: {
   login: string;
   passwordHash: string;
   role: AccountCreationRole;
+  memberships?: readonly InitialTeamMembership[];
 }) {
   try {
     return await withTransaction(async (client) => {
@@ -122,6 +125,17 @@ export async function createManagedAccount(input: {
          RETURNING id, login_identifier, display_name, role, must_change_password, disabled_at, created_at`,
         [input.login, input.displayName, input.passwordHash, input.role],
       );
+      const memberships = parseInitialTeamMemberships((input.memberships ?? []).map((item) => `${item.teamId}:${item.teamRole}`));
+      if (!memberships) throw new Error("Invalid initial team memberships.");
+      for (const membership of memberships) {
+        const added = await client.query(
+          `INSERT INTO team_members (team_id, user_id, team_role)
+           SELECT id, $2, $3 FROM teams WHERE id = $1 AND active = true
+           RETURNING team_id`,
+          [membership.teamId, result.rows[0].id, membership.teamRole],
+        );
+        if (!added.rowCount) throw new Error("Initial team unavailable.");
+      }
       return mapAccountSummary(result.rows[0], input.role);
     });
   } catch (error) {
@@ -233,9 +247,9 @@ export async function changeAccountPassword(userId: string, expectedAuthVersion:
   });
 }
 
-function lockActiveAdministrators(client: PoolClient) {
-  return client.query<{ id: string }>(
-    `SELECT id FROM users
+export function lockActiveAdministrators(client: PoolClient) {
+  return client.query<{ id: string; auth_version: number; must_change_password: boolean }>(
+    `SELECT id, auth_version, must_change_password FROM users
      WHERE role = 'admin' AND disabled_at IS NULL
      ORDER BY id
      FOR UPDATE`,

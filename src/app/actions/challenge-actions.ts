@@ -1,5 +1,6 @@
 "use server";
 
+import { LearnerScopeError } from "../lib/server/learner-access-repository.ts";
 import { revalidatePath } from "next/cache";
 import { isUuid } from "../lib/account-security";
 import {
@@ -236,7 +237,7 @@ export async function reviewChallengeSubmissionAction(
     if (error instanceof ReviewSubmissionNotFoundError) return { status: "error", message: "Abgabe nicht gefunden." };
     if (error instanceof SubmissionAlreadyReviewedError) return { status: "error", message: "Diese Abgabe wurde bereits unveränderlich geprüft." };
     if (error instanceof RubricScoreValidationError) return { status: "error", message: "Prüfe die Rubrikbewertung.", fieldErrors: { scores: "Bewerte jedes aktuelle Kriterium mit einer zulässigen ganzen Punktzahl." } };
-    if (isCurrentUserError(error)) return { status: "error", message: "Diese Aktion erfordert ein aktuelles Administrationskonto." };
+    if (isCurrentUserError(error)) return { status: "error", message: "Diese Aktion erfordert eine aktuelle Berechtigung für das ausgewählte Lernkonto." };
     console.error("[azubi-lab] review submission failed", error instanceof Error ? error.name : "UnknownError");
     return { status: "error", message: "Das Review konnte nicht gespeichert werden. Bitte versuche es erneut." };
   }
@@ -313,13 +314,13 @@ function commentNotFound(): CommentActionState {
 }
 
 function challengeActionFailure(area: string, error: unknown): ChallengeActionState {
-  if (isCurrentUserError(error)) return { status: "error", message: "Diese Aktion erfordert ein aktuelles Administrationskonto." };
+  if (isCurrentUserError(error)) return { status: "error", message: "Diese Aktion erfordert eine aktuelle Berechtigung für das ausgewählte Lernkonto." };
   console.error(`[azubi-lab] ${area} failed`, error instanceof Error ? error.name : "UnknownError");
   return { status: "error", message: "Die Challenge konnte nicht gespeichert werden. Bitte versuche es erneut." };
 }
 
 function assignmentActionFailure(area: string, error: unknown): AssignmentActionState {
-  if (isCurrentUserError(error)) return { status: "error", message: "Diese Aktion erfordert ein aktuelles Administrationskonto." };
+  if (isCurrentUserError(error)) return { status: "error", message: "Diese Aktion erfordert eine aktuelle Berechtigung für das ausgewählte Lernkonto." };
   console.error(`[azubi-lab] ${area} failed`, error instanceof Error ? error.name : "UnknownError");
   return { status: "error", message: "Die Zuweisung konnte nicht gespeichert werden. Bitte versuche es erneut." };
 }
@@ -341,7 +342,7 @@ function commentFailure(area: string, error: unknown, audience: "learner" | "adm
     return {
       status: "error",
       message: audience === "admin"
-        ? "Diese Aktion erfordert ein aktuelles Administrationskonto."
+        ? "Diese Aktion erfordert eine aktuelle Berechtigung für das ausgewählte Lernkonto."
         : "Diese Aktion erfordert ein aktuelles Lernkonto.",
     };
   }
@@ -350,7 +351,8 @@ function commentFailure(area: string, error: unknown, audience: "learner" | "adm
 }
 
 function isCurrentUserError(error: unknown) {
-  return error instanceof AuthenticationRequiredError
+  return error instanceof LearnerScopeError
+    || error instanceof AuthenticationRequiredError
     || error instanceof PasswordChangeRequiredError
     || error instanceof CapabilityAuthorizationError;
 }

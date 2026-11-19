@@ -114,6 +114,7 @@ export async function getCurrentShellProfileView(): Promise<ShellProfileView | u
     activeTitle: rewards.activeTitle?.displayName,
     xp: rewards.level,
     nextMilestones: rewards.nextMilestones,
+    pinnedBadges: rewards.pinnedBadges,
   };
 }
 

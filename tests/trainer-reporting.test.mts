@@ -192,7 +192,9 @@ test("focused admin surfaces authorize before reporting and keep the dashboard c
   const matrixPage = await readFile(new URL("../src/app/admin/skill-matrix/page.tsx", import.meta.url), "utf8");
   const summaryRepository = await readFile(new URL("../src/app/lib/server/trainer-learner-summary-repository.ts", import.meta.url), "utf8");
   const detailPage = await readFile(new URL("../src/app/admin/lernende/[userId]/page.tsx", import.meta.url), "utf8");
-  assert.ok(service.indexOf('requireCapability("viewLearnerProgress")') < service.indexOf("listLearnerAccounts()"));
+  assert.ok(service.indexOf('requireCapability("viewLearnerProgress")') < service.indexOf("listLearnerAccounts(learnerIds)"));
+  assert.ok(service.indexOf("listAccessibleLearnerIds(actor.id)") < service.indexOf("listLearnerAccounts(learnerIds)"));
+  assert.match(service, /listAllAssignmentsForAdmin\(now, learnerIds\)/);
   assert.ok(detailService.indexOf('requireCapability("viewLearnerProgress")') < detailService.indexOf("isUuid(userId)"));
   assert.ok(dashboardPage.indexOf('getTrainerPageAccess("/admin")') < dashboardPage.indexOf("getAdminDashboardData()"));
   assert.ok(learnerPage.indexOf('getTrainerPageAccess("/admin/lernende")') < learnerPage.indexOf("getAdminDashboardData()"));

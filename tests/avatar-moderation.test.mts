@@ -24,16 +24,19 @@ test("cross-account avatar capabilities are admin-only and exclude self-moderati
 });
 
 test("admin account view uses private versioned avatars with initials fallback and filtering", async () => {
-  const [page, service, component, repository] = await Promise.all([
+  const [page, service, component, repository, detail, directoryService] = await Promise.all([
     source("src/app/admin/konten/page.tsx"),
     source("src/app/lib/server/admin-avatar-service.ts"),
     source("src/app/components/admin/admin-avatar-moderation.tsx"),
     source("src/app/lib/server/admin-repository.ts"),
+    source("src/app/admin/konten/[userId]/page.tsx"),
+    source("src/app/lib/server/account-directory-service.ts"),
   ]);
-  assert.match(page, /listAdminAccountAvatarViews/);
+  assert.match(directoryService, /listAdminAccountAvatarViews/);
   assert.match(page, /Mit Profilbild/);
-  assert.match(page, /accounts\.filter\(\(account\) => Boolean\(account\.avatar\.src\)\)/);
-  assert.match(page, /AdminAvatarModeration/);
+  assert.match(directoryService, /filter\(\(account\) => account\.avatar\.src\)/);
+  assert.match(detail, /AdminAvatarModeration/);
+  assert.doesNotMatch(page, /<AdminAvatarModeration|<AccountManagementActions/);
   assert.match(service, /listAccountSummaries\(\)/);
   assert.match(repository, /FROM users\s+ORDER BY display_name/);
   assert.match(service, /withoutAvatar/);

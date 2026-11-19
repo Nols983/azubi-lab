@@ -1,5 +1,6 @@
 import "server-only";
 
+import { learnerAccessPredicate } from "./learner-access-repository.ts";
 import type { EvidenceMimeType } from "../challenge-evidence.ts";
 import { getDatabasePool } from "./db.ts";
 
@@ -15,7 +16,6 @@ type AuthorizedAttachmentRow = {
 export async function findAuthorizedAttachment(input: {
   attachmentId: string;
   userId: string;
-  canReviewAll: boolean;
 }) {
   const result = await getDatabasePool().query<AuthorizedAttachmentRow>(
     `SELECT attachment.id, attachment.storage_key, attachment.original_filename,
@@ -24,9 +24,9 @@ export async function findAuthorizedAttachment(input: {
      JOIN challenge_submissions submission ON submission.id = attachment.submission_id
      JOIN challenge_assignments assignment ON assignment.id = submission.assignment_id
      WHERE attachment.id = $1
-       AND ($3::boolean OR assignment.learner_id = $2)
+       AND (assignment.learner_id = $2 OR ${learnerAccessPredicate("$2", "assignment.learner_id")})
      LIMIT 1`,
-    [input.attachmentId, input.userId, input.canReviewAll],
+    [input.attachmentId, input.userId],
   );
   const row = result.rows[0];
   return row

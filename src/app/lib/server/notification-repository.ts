@@ -1,5 +1,7 @@
 import "server-only";
 
+import { notificationVisibilityPredicate } from "./notification-access.ts";
+
 import {
   deduplicateNotificationCandidates,
   isSafeInternalNotificationHref,
@@ -68,6 +70,7 @@ async function insertNotificationCandidatesUsing(
        $1::uuid[], $2::text[], $3::text[], $4::text[],
        $5::text[], $6::text[], $7::timestamptz[]
      ) AS input(user_id, type, title, message, href, dedupe_key, created_at)
+     WHERE ${notificationVisibilityPredicate("input.user_id", "input.type", "input.href", true)}
      ON CONFLICT (user_id, dedupe_key) DO NOTHING
      RETURNING id, user_id, type, title, message, href, created_at, read_at`,
     [
@@ -93,6 +96,7 @@ export async function listNotificationsForUser(userId: string, limit = NOTIFICAT
     `SELECT id, type, title, message, href, created_at, read_at
      FROM notifications
      WHERE user_id = $1 AND dismissed_at IS NULL
+       AND ${notificationVisibilityPredicate("notifications.user_id", "notifications.type", "notifications.href")}
      ORDER BY (read_at IS NOT NULL) ASC, created_at DESC, id DESC
      LIMIT $2`,
     [userId, safeLimit],
@@ -104,7 +108,8 @@ export async function countUnreadNotificationsForUser(userId: string) {
   const result = await getDatabasePool().query<{ count: string }>(
     `SELECT count(*)
      FROM notifications
-     WHERE user_id = $1 AND read_at IS NULL AND dismissed_at IS NULL`,
+     WHERE user_id = $1 AND read_at IS NULL AND dismissed_at IS NULL
+       AND ${notificationVisibilityPredicate("notifications.user_id", "notifications.type", "notifications.href")}`,
     [userId],
   );
   return Number(result.rows[0]?.count ?? 0);
@@ -114,7 +119,8 @@ export async function markNotificationReadForUser(notificationId: string, userId
   const result = await getDatabasePool().query(
     `UPDATE notifications
      SET read_at = COALESCE(read_at, now())
-     WHERE id = $1 AND user_id = $2 AND dismissed_at IS NULL`,
+     WHERE id = $1 AND user_id = $2 AND dismissed_at IS NULL
+       AND ${notificationVisibilityPredicate("notifications.user_id", "notifications.type", "notifications.href")}`,
     [notificationId, userId],
   );
   return Boolean(result.rowCount);
@@ -126,6 +132,7 @@ export async function markVisibleNotificationsReadForUser(userId: string) {
        SELECT id
        FROM notifications
        WHERE user_id = $1 AND dismissed_at IS NULL
+       AND ${notificationVisibilityPredicate("notifications.user_id", "notifications.type", "notifications.href")}
        ORDER BY (read_at IS NOT NULL) ASC, created_at DESC, id DESC
        LIMIT $2
      )
@@ -142,7 +149,8 @@ export async function dismissNotificationForUser(notificationId: string, userId:
   const result = await getDatabasePool().query(
     `UPDATE notifications
      SET dismissed_at = COALESCE(dismissed_at, now())
-     WHERE id = $1 AND user_id = $2 AND dismissed_at IS NULL`,
+     WHERE id = $1 AND user_id = $2 AND dismissed_at IS NULL
+       AND ${notificationVisibilityPredicate("notifications.user_id", "notifications.type", "notifications.href")}`,
     [notificationId, userId],
   );
   return Boolean(result.rowCount);
@@ -162,4 +170,15 @@ function mapNotification(row: NotificationRow): NotificationRecord {
 
 function mapInsertedNotification(row: InsertedNotificationRow): InsertedNotificationRecord {
   return { ...mapNotification(row), userId: row.user_id };
+}
+
+export async function filterVisiblePersistedNotifications(notifications: readonly InsertedNotificationRecord[]) {
+  if (notifications.length === 0) return [];
+  const result = await getDatabasePool().query<{ id: string }>(
+    `SELECT id FROM notifications WHERE id = ANY($1::uuid[])
+     AND ${notificationVisibilityPredicate("notifications.user_id", "notifications.type", "notifications.href")}`,
+    [notifications.map((notification) => notification.id)],
+  );
+  const visible = new Set(result.rows.map((row) => row.id));
+  return notifications.filter((notification) => visible.has(notification.id));
 }

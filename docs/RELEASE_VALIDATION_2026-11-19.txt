@@ -1,0 +1,202 @@
+Azubi Lab – lokale Release-Validierung – 2026-11-19
+Node.js v24.19.0 / npm 11.17.0
+
+### npm ci
+
+added 398 packages, and audited 399 packages in 8s
+
+152 packages are looking for funding
+  run `npm fund` for details
+
+found 0 vulnerabilities
+
+### Preflight
+
+> azubi-lab@0.1.0 codex:preflight
+> bash scripts/codex/preflight.sh --expected-head bdfa4b271460 --allow-dirty
+
+Codex Preflight
+Repo:         <repository>
+Branch:       release/azubi-lab-20261119
+HEAD:         bdfa4b271460
+Expected:     bdfa4b271460 (OK)
+Working tree: dirty (allowed)
+Node.js:      v24.19.0
+npm:          11.17.0
+Dependencies: OK
+
+===Ergebnis===
+PASS
+
+### npm run verify:full (abschließender Wiederholungslauf)
+
+> azubi-lab@0.1.0 verify:full
+> bash scripts/codex/verify-full.sh
+
+Full Validation
+Repo: <repository>
+HEAD: bdfa4b271460
+
+--- Codex shell syntax ---
+PASS (0s)
+
+--- Codex toolkit self-test ---
+PASS (3s)
+
+--- Tests ---
+PASS (4s)
+
+--- ESLint ---
+PASS (17s)
+
+--- TypeScript ---
+PASS (28s)
+
+--- Ops validation ---
+PASS (0s)
+
+--- Production build ---
+PASS (62s)
+
+--- Git diff check ---
+PASS (0s)
+
+===Ergebnis===
+PASS
+
+### npm run verify:db
+
+> azubi-lab@0.1.0 verify:db
+> bash scripts/codex/verify-db.sh
+
+DB Validation
+Repo:       <repository>
+Runtime:    podman
+PostgreSQL: 17
+Suites:     accounts challenges planning notifications practice xp ihk web-push security labs profile-moderation teams team-access account-directory
+Isolation:  disposable localhost database
+
+--- PostgreSQL 17 start ---
+Host:       127.0.0.1
+Credentials: generated temporary values
+Readiness:  PASS
+Version:    PostgreSQL 17 confirmed
+
+--- Migration run 1 ---
+PASS (0s)
+
+--- Migration run 2 / idempotency ---
+PASS (0s)
+
+--- DB suite: accounts ---
+PASS (0s)
+
+--- DB suite: challenges ---
+PASS (1s)
+
+--- DB suite: planning ---
+PASS (0s)
+
+--- DB suite: notifications ---
+PASS (1s)
+
+--- DB suite: practice ---
+PASS (1s)
+
+--- DB suite: xp ---
+PASS (0s)
+
+--- DB suite: ihk ---
+PASS (1s)
+
+--- DB suite: web-push ---
+PASS (1s)
+
+--- DB suite: security ---
+PASS (0s)
+
+--- DB suite: labs ---
+PASS (1s)
+
+--- DB suite: profile-moderation ---
+PASS (0s)
+
+--- DB suite: teams ---
+PASS (0s)
+
+--- DB suite: team-access ---
+PASS (1s)
+
+--- DB suite: account-directory ---
+PASS (2s)
+
+Migration count: 24/24
+Cleanup:         PASS
+
+===Ergebnis===
+PASS
+
+### npm run verify:db -- team-actions
+
+> azubi-lab@0.1.0 verify:db
+> bash scripts/codex/verify-db.sh team-actions
+
+DB Validation
+Repo:       <repository>
+Runtime:    podman
+PostgreSQL: 17
+Suites:     team-actions
+Isolation:  disposable localhost database
+
+--- PostgreSQL 17 start ---
+Host:       127.0.0.1
+Credentials: generated temporary values
+Readiness:  PASS
+Version:    PostgreSQL 17 confirmed
+
+--- Migration run 1 ---
+PASS (0s)
+
+--- Migration run 2 / idempotency ---
+PASS (0s)
+
+--- DB suite: team-actions ---
+PASS (47s)
+
+Migration count: 24/24
+Cleanup:         PASS
+
+===Ergebnis===
+PASS
+
+### npm audit --json
+{
+  "auditReportVersion": 2,
+  "vulnerabilities": {},
+  "metadata": {
+    "vulnerabilities": {
+      "info": 0,
+      "low": 0,
+      "moderate": 0,
+      "high": 0,
+      "critical": 0,
+      "total": 0
+    },
+    "dependencies": {
+      "prod": 58,
+      "dev": 384,
+      "optional": 86,
+      "peer": 0,
+      "peerOptional": 0,
+      "total": 477
+    }
+  }
+}
+
+### Final index, preservation and security checks
+PASS: git diff --cached --check in both target repositories.
+PASS: 566 release files inspected; no confirmed sensitive contents found.
+PASS: 61 modified and 31 new public files; no deletions or renames.
+PASS: every original private documentation file retained; only the three authorized files changed.
+PASS: all historical changelog entries retained byte-for-byte.
+PASS: source unchanged; public main unchanged; no private commit objects imported.

@@ -3,13 +3,13 @@ export const ACCOUNT_ROLES = ["learner", "observer", "instructor", "admin"] as c
 export type AccountRole = (typeof ACCOUNT_ROLES)[number];
 
 export const ACCOUNT_ROLE_LABELS: Record<AccountRole, string> = {
-  learner: "Lernender",
-  observer: "Betrachter",
-  instructor: "Werkstattleiter",
+  learner: "Azubi",
+  observer: "Beobachter",
+  instructor: "Teamleiter",
   admin: "Administrator",
 };
 
-export const ACCOUNT_CREATION_ROLES = ["learner", "observer"] as const satisfies readonly AccountRole[];
+export const ACCOUNT_CREATION_ROLES = ["learner", "observer", "instructor", "admin"] as const satisfies readonly AccountRole[];
 
 export type AccountCreationRole = (typeof ACCOUNT_CREATION_ROLES)[number];
 

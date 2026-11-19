@@ -1,5 +1,6 @@
 import "server-only";
 
+import { canAccessLearner } from "./learner-access-repository";
 import { isUuid } from "../account-security";
 import { getAdminProgressView } from "../admin-progress";
 import { buildCurriculumAssignmentViews } from "../curriculum-planning";
@@ -22,8 +23,8 @@ export async function getAdminDashboardData() {
 }
 
 export async function getAdminLearnerDetail(userId: unknown) {
-  await requireCapability("viewLearnerProgress");
-  if (!isUuid(userId)) return undefined;
+  const actor = await requireCapability("viewLearnerProgress");
+  if (!isUuid(userId) || !await canAccessLearner(actor.id, userId)) return undefined;
   const learner = await findLearnerAccountById(userId);
   if (!learner) return undefined;
   const [state, challenges, planningRecords, labAggregates, practiceRows, progression] = await Promise.all([

@@ -1,5 +1,6 @@
 "use server";
 
+import { withProfileImageAccountLock } from "../lib/server/profile-image-mutation.ts";
 import { revalidatePath } from "next/cache";
 import {
   MAX_PINNED_BADGES,
@@ -38,7 +39,7 @@ export async function uploadProfileImageAction(
     const file = formData.get("profileImage");
     if (!(file instanceof File)) return { status: "error", message: "Wähle ein Profilbild aus." };
     const processed = await processProfileImage(file);
-    await new LocalFilesystemProfileImageStorage().replace(user.id, processed);
+    await withProfileImageAccountLock(user, () => new LocalFilesystemProfileImageStorage().replace(user.id, processed));
     revalidateProfileViews();
     return { status: "success", message: "Dein Profilbild wurde gespeichert." };
   } catch (error) {
@@ -53,7 +54,7 @@ export async function deleteProfileImageAction(
   try {
     const user = await requireAuthenticatedUser();
     if (!hasOnlyFields(formData, [])) return invalidRequest();
-    await new LocalFilesystemProfileImageStorage().delete(user.id);
+    await withProfileImageAccountLock(user, () => new LocalFilesystemProfileImageStorage().delete(user.id));
     revalidateProfileViews();
     return { status: "success", message: "Dein Profilbild wurde entfernt." };
   } catch (error) {

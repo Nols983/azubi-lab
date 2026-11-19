@@ -1,5 +1,7 @@
 import "server-only";
 
+import { assertLearnerAccess } from "./learner-access-repository.ts";
+
 import { learningModules } from "../../data/learning-modules.ts";
 import { getDatabasePool, withTransaction } from "./db.ts";
 import type { PoolClient } from "pg";
@@ -106,6 +108,8 @@ export async function assignCurriculumModulesWithClient(
     [input.assignedBy],
   );
   if (!learnerResult.rowCount) throw new CurriculumAssignmentLearnerInvalidError();
+  await assertLearnerAccess(input.assignedBy, [input.learnerId], client);
+
   if (!adminResult.rowCount) throw new CurriculumAssignmentAdminInvalidError();
 
   const active = await client.query<{ module_slug: string }>(
@@ -155,8 +159,8 @@ export async function updateCurriculumAssignment(input: {
   assignmentId: string;
   targetAt: Date | null;
   note: string | null;
-}) {
-  const result = await getDatabasePool().query<{ learner_id: string }>(
+}, queryable: Pick<PoolClient, "query"> = getDatabasePool()) {
+  const result = await queryable.query<{ learner_id: string }>(
     `UPDATE curriculum_assignments
      SET target_at = $2, note = $3, updated_at = now()
      WHERE id = $1 AND archived_at IS NULL
@@ -167,8 +171,8 @@ export async function updateCurriculumAssignment(input: {
   return result.rows[0].learner_id;
 }
 
-export async function archiveCurriculumAssignment(assignmentId: string) {
-  const result = await getDatabasePool().query<{ learner_id: string }>(
+export async function archiveCurriculumAssignment(assignmentId: string, queryable: Pick<PoolClient, "query"> = getDatabasePool()) {
+  const result = await queryable.query<{ learner_id: string }>(
     `UPDATE curriculum_assignments
      SET archived_at = now(), updated_at = now()
      WHERE id = $1 AND archived_at IS NULL

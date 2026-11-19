@@ -1,6 +1,8 @@
 import type { AccountRole } from "./auth-types.ts";
 
 export const ACCOUNT_CAPABILITIES = [
+  "submitTopicProposals",
+  "reviewTopicProposals",
   "manageChallenges",
   "reviewSubmissions",
   "viewLearnerProgress",
@@ -41,6 +43,7 @@ const roleCapabilities: Record<AccountRole, ReadonlySet<AccountCapability>> = {
     "readOnlyPlatformPreview",
   ]),
   instructor: new Set([
+    "submitTopicProposals",
     "manageChallenges",
     "reviewSubmissions",
     "viewLearnerProgress",

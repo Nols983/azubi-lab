@@ -152,9 +152,9 @@ try {
   assert.equal(persistedEvidence.every((item) => /^[0-9a-f]{64}$/.test(item.sha256)), true);
   const pngAttachment = persistedEvidence.find((item) => item.mimeType === "image/png");
   assert.ok(pngAttachment);
-  assert.equal((await findAuthorizedAttachment({ attachmentId: pngAttachment.id, userId: learnerB, canReviewAll: false }))?.originalFilename, "dns-beleg.png");
-  assert.equal(await findAuthorizedAttachment({ attachmentId: pngAttachment.id, userId: learnerA, canReviewAll: false }), undefined);
-  assert.equal((await findAuthorizedAttachment({ attachmentId: pngAttachment.id, userId: adminId, canReviewAll: true }))?.byteSize, 9);
+  assert.equal((await findAuthorizedAttachment({ attachmentId: pngAttachment.id, userId: learnerB }))?.originalFilename, "dns-beleg.png");
+  assert.equal(await findAuthorizedAttachment({ attachmentId: pngAttachment.id, userId: learnerA }), undefined);
+  assert.equal((await findAuthorizedAttachment({ attachmentId: pngAttachment.id, userId: adminId }))?.byteSize, 9);
 
   const beforeFailedSubmissionFiles = (await readdir(evidenceRoot)).length;
   await assert.rejects(

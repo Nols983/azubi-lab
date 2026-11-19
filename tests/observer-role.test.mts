@@ -24,12 +24,12 @@ import {
 import { parseAccountCreationRole, parseAccountRole } from "../src/app/lib/account-security.ts";
 import { getIhkExamPreview, getPracticeQuizPreview } from "../src/app/lib/server/quiz-preview-service.ts";
 
-test("observer is canonical and only learner or observer can be provisioned directly", () => {
+test("all four canonical account roles can be provisioned by administrators", () => {
   assert.equal(parseAccountRole("observer"), "observer");
   assert.equal(parseAccountCreationRole("learner"), "learner");
   assert.equal(parseAccountCreationRole("observer"), "observer");
-  assert.equal(parseAccountCreationRole("instructor"), undefined);
-  assert.equal(parseAccountCreationRole("admin"), undefined);
+  assert.equal(parseAccountCreationRole("instructor"), "instructor");
+  assert.equal(parseAccountCreationRole("admin"), "admin");
   assert.equal(parseAccountCreationRole("owner"), undefined);
 });
 

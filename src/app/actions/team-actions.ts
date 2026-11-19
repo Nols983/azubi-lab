@@ -161,6 +161,7 @@ export async function removeTeamMemberAction(
 }
 
 function revalidateTeamPaths(slug: string) {
+  revalidatePath("/admin", "layout");
   revalidatePath("/admin");
   revalidatePath("/admin/teams");
   revalidatePath("/teams");
@@ -168,6 +169,9 @@ function revalidateTeamPaths(slug: string) {
 }
 
 function revalidateMembershipPaths(userId: string) {
+  revalidatePath("/admin", "layout");
+  revalidatePath("/admin/konten");
+  revalidatePath(`/admin/konten/${userId}`);
   revalidatePath("/admin/teams");
   revalidatePath("/teams");
   revalidatePath("/teams", "layout");

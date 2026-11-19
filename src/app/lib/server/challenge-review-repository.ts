@@ -1,5 +1,7 @@
 import "server-only";
 
+import { assertLearnerResourceAccess, learnerAccessPredicate } from "./learner-access-repository.ts";
+
 import type { ChallengeDifficulty, ChallengeReviewDecision, RubricScoreInput } from "../challenge-domain.ts";
 import { wasSubmittedAfterDue } from "../challenge-domain.ts";
 import { getDatabasePool, withTransaction } from "./db.ts";
@@ -92,6 +94,7 @@ export async function createChallengeReviewWithClient(
     scores?: readonly RubricScoreInput[];
   },
 ) {
+  await assertLearnerResourceAccess(input.reviewedBy, "submission", input.submissionId, client);
   const submission = await client.query<{
     id: string;
     challenge_id: string;
@@ -185,11 +188,12 @@ export async function createChallengeReviewWithClient(
   }
 }
 
-export async function listPendingChallengeReviews() {
+export async function listPendingChallengeReviews(learnerIds?: readonly string[]) {
   const result = await getDatabasePool().query<ReviewDetailRow>(
     `${reviewDetailSelect}
-     WHERE r.id IS NULL
+     WHERE r.id IS NULL AND ($1::uuid[] IS NULL OR a.learner_id = ANY($1::uuid[]))
      ORDER BY s.submitted_at ASC, s.id ASC`,
+    [learnerIds ?? null],
   );
   return result.rows.map((row): PendingChallengeReview => ({
     submissionId: row.submission_id,
@@ -218,8 +222,8 @@ export async function countPendingChallengeReviews() {
   return Number(result.rows[0]?.count ?? 0);
 }
 
-export async function findSubmissionReviewDetail(submissionId: string) {
-  const result = await getDatabasePool().query<ReviewDetailRow>(`${reviewDetailSelect} WHERE s.id = $1 LIMIT 1`, [submissionId]);
+export async function findSubmissionReviewDetail(submissionId: string, actorId?: string) {
+  const result = await getDatabasePool().query<ReviewDetailRow>(`${reviewDetailSelect} WHERE s.id = $1 AND ($2::uuid IS NULL OR ${learnerAccessPredicate("$2", "a.learner_id")}) LIMIT 1`, [submissionId, actorId ?? null]);
   const row = result.rows[0];
   if (!row) return undefined;
   const [history, rubricCriteria] = await Promise.all([

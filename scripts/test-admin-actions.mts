@@ -18,6 +18,7 @@ if (!process.env.DATABASE_URL || !adminLogin || !adminPassword) {
 
 const compilationResponses = await Promise.all([
   "/admin/konten",
+  "/admin/konten/00000000-0000-4000-8000-000000000001",
   "/admin/lernende/neu",
   "/admin/lernende/00000000-0000-4000-8000-000000000001",
   "/konto/passwort-aendern",
@@ -74,7 +75,7 @@ try {
   assert.equal(staleRolePage.status >= 300 && staleRolePage.status < 400, true);
   const instructorCookie = await login(roleFixtureLogin, roleFixturePassword);
   const instructorDashboard = await fetch(`${baseUrl}/admin`, { headers: { cookie: instructorCookie } });
-  assert.match(await instructorDashboard.text(), /Trainer-Dashboard[\s\S]*Skill-Matrix/);
+  assert.match(await instructorDashboard.text(), /Trainer-Cockpit[\s\S]*Skill-Matrix/);
   const instructorAccounts = await fetch(`${baseUrl}/admin/konten`, { headers: { cookie: instructorCookie } });
   assert.match(await instructorAccounts.text(), /Keine Administrationsberechtigung/);
   const instructorReset = await invokeAction(instructorCookie, `/admin/lernende/${target.id}`, resetActionId, [target.id, { status: "idle", message: "" }, new FormData()]);
@@ -106,10 +107,12 @@ try {
   const accountPage = await fetch(`${baseUrl}/admin/konten`, { headers: { cookie: adminCookie } });
   const accountPageText = await accountPage.text();
   assert.match(accountPageText, /Action Role Candidate/);
-  assert.match(accountPageText, /Werkstattleiter/);
-  assert.match(accountPageText, /Kontozugriff/);
-  assert.match(accountPageText, /Konto sperren/);
-  assert.match(accountPageText, /Das eigene Konto kann nicht gesperrt werden/);
+  assert.match(accountPageText, /Teamleiter/);
+  assert.doesNotMatch(accountPageText, /Konto sperren/);
+  const accountDetailText = await (await fetch(`${baseUrl}/admin/konten/${roleFixture.id}`, { headers: { cookie: adminCookie } })).text();
+  assert.match(accountDetailText, /Kontozugriff/);
+  assert.match(accountDetailText, /Konto sperren/);
+  assert.match(await (await fetch(`${baseUrl}/admin/konten/${admin.id}`, { headers: { cookie: adminCookie } })).text(), /Das eigene Konto kann nicht gesperrt werden/);
   const trainerPage = await fetch(`${baseUrl}/admin`, { headers: { cookie: adminCookie } });
   const trainerPageText = await trainerPage.text();
   assert.match(trainerPageText, /Lernende/);
@@ -178,7 +181,7 @@ try {
     [roleFixture.id, { status: "idle", message: "" }, new FormData()],
   );
   assert.match(suspendedInstructorReset, /nicht gefunden oder darf nicht geändert werden/);
-  const suspendedAccountPage = await fetch(`${baseUrl}/admin/konten`, { headers: { cookie: adminCookie } });
+  const suspendedAccountPage = await fetch(`${baseUrl}/admin/konten/${roleFixture.id}`, { headers: { cookie: adminCookie } });
   const suspendedAccountPageText = await suspendedAccountPage.text();
   assert.match(suspendedAccountPageText, /Gesperrt/);
   assert.match(suspendedAccountPageText, /Konto reaktivieren/);
@@ -206,7 +209,7 @@ try {
   assert.equal(stillStaleInstructorPage.status >= 300 && stillStaleInstructorPage.status < 400, true);
   const reactivatedInstructorCookie = await login(roleFixtureLogin, roleFixturePassword);
   const reactivatedInstructorDashboard = await fetch(`${baseUrl}/admin`, { headers: { cookie: reactivatedInstructorCookie } });
-  assert.match(await reactivatedInstructorDashboard.text(), /Trainer-Dashboard/);
+  assert.match(await reactivatedInstructorDashboard.text(), /Trainer-Cockpit/);
 
   const observerRoleData = new FormData();
   observerRoleData.set("role", "observer");
@@ -270,7 +273,7 @@ try {
     createActionId,
     [{ status: "idle", message: "" }, observerCreateData],
   );
-  assert.match(observerCreate, /Betrachterkonto wurde angelegt/);
+  assert.match(observerCreate, /Konto wurde einschließlich der Teamzuordnungen angelegt/);
   const createdObserver = (await pool.query<{ role: string; must_change_password: boolean }>(
     "SELECT role, must_change_password FROM users WHERE login_identifier = $1",
     [observerFixtureLogin],

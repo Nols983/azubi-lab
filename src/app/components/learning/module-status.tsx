@@ -8,5 +8,10 @@ export const moduleStatusPresentation: Record<LearnerStatus, { label: string; ac
 
 export function ModuleStatus({ status }: { status: LearnerStatus }) {
   const presentation = moduleStatusPresentation[status];
-  return <span className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${presentation.className}`}>{presentation.label}</span>;
+  return (
+    <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold ${presentation.className}`}>
+      <span aria-hidden="true" className="font-black">{status === "completed" ? "✓" : status === "in-progress" ? "◐" : "○"}</span>
+      {presentation.label}
+    </span>
+  );
 }

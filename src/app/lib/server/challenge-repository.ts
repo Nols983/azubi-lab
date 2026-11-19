@@ -1,5 +1,6 @@
 import "server-only";
 
+import { learnerAccessPredicate } from "./learner-access-repository.ts";
 import type { PoolClient } from "pg";
 import type { ChallengeDifficulty, ChallengeInput, ChallengeStatus, RubricCriterionInput } from "../challenge-domain.ts";
 import { getDatabasePool, withTransaction } from "./db.ts";
@@ -76,7 +77,7 @@ export class ChallengeNotFoundError extends Error {
   }
 }
 
-export async function listChallengeDefinitions(status?: ChallengeStatus) {
+export async function listChallengeDefinitions(status?: ChallengeStatus, actorId?: string) {
   const result = await getDatabasePool().query<ChallengeListRow>(
     `SELECT c.id, c.title, c.short_description, c.instructions, c.difficulty,
             c.estimated_minutes, c.status, c.created_by, creator.display_name AS creator_display_name,
@@ -92,6 +93,7 @@ export async function listChallengeDefinitions(status?: ChallengeStatus) {
      FROM challenges c
      JOIN users creator ON creator.id = c.created_by
      LEFT JOIN challenge_assignments a ON a.challenge_id = c.id
+       AND ($2::uuid IS NULL OR ${learnerAccessPredicate("$2", "a.learner_id")})
      LEFT JOIN LATERAL (
        SELECT s.id
        FROM challenge_submissions s
@@ -103,7 +105,7 @@ export async function listChallengeDefinitions(status?: ChallengeStatus) {
      WHERE ($1::text IS NULL OR c.status = $1)
      GROUP BY c.id, creator.display_name
      ORDER BY c.created_at DESC, c.id DESC`,
-    [status ?? null],
+    [status ?? null, actorId ?? null],
   );
   return result.rows.map(mapChallengeListItem);
 }

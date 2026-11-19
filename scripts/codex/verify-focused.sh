@@ -87,6 +87,7 @@ tests/security-hardening.test.mts
 
     [admin]="
 tests/admin-domain.test.mts
+tests/account-directory.test.mts
 tests/trainer-reporting.test.mts
 tests/challenge-domain.test.mts
 tests/observer-role.test.mts
@@ -95,6 +96,7 @@ tests/avatar-moderation.test.mts
 
     [teams]="
 tests/team-domain.test.mts
+tests/team-management.test.mts
 tests/team-social.test.mts
 tests/progression-rewards.test.mts
 tests/profile.test.mts

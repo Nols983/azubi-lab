@@ -48,6 +48,7 @@ export type ShellProfileView = {
   activeTitle?: string;
   xp?: LevelProgress;
   nextMilestones?: LearnerRewardState["nextMilestones"];
+  pinnedBadges?: LearnerRewardState["pinnedBadges"];
 };
 
 export type LearnerProfileRewards = LearnerRewardState;
@@ -138,6 +139,6 @@ export function getProfileQuickLinks(role: AccountRole): readonly ProfileQuickLi
 function getAccountContext(role: AccountRole) {
   if (role === "learner") return "Dein privates Lernprofil und dein persönlicher Lernstand.";
   if (role === "observer") return "Dein privates Betrachterkonto für die schreibgeschützte Plattformvorschau.";
-  if (role === "instructor") return "Dein privates Werkstattleiterkonto für Betreuung und Auswertung.";
+  if (role === "instructor") return "Dein privates Teamleiterkonto für Betreuung und Auswertung.";
   return "Dein privates Administrationskonto für Azubi Lab.";
 }

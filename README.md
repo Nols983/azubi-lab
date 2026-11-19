@@ -71,8 +71,39 @@ Die aktuellen Rollen sind:
 | --- | --- |
 | `learner` | Lernen, Quizze, Labs, Challenges und eigener Fortschritt |
 | `observer` | schreibgeschützte Produkt-/Profilansicht ohne Lernenden-XP |
-| `instructor` | Lernplanung, Challenges, Reviews und Trainer-Reporting |
+| `instructor` | Teamleitung für zugeordnete Azubis, Lernplanung, Challenges, Reviews und Trainer-Reporting |
 | `admin` | Konten, Rollen, Wiederherstellung und administrative Funktionen |
+
+### Teamleitung, Themenvorschläge und Kontenverzeichnis
+
+Administratoren verwalten Teams und Mitgliedschaften. Ein `instructor` mit
+`manager`-Mitgliedschaft in einem aktiven Team betreut dessen Azubis; eine
+Mitgliedschaft allein vergibt keine Anwendungsrolle. Serverseitige Prüfungen
+begrenzen Reporting, Zuweisungen, Reviews, Nachweise und Benachrichtigungen auf
+den aktuellen Teamumfang und berücksichtigen Rechteentzug und archivierte Teams.
+Teamleiter reichen Themenvorschläge für geleitete Teams ein. Administratoren
+bearbeiten Status und Feedback; eine Annahme veröffentlicht kein Lernmodul.
+
+Das administrative Kontenverzeichnis bietet Teamnavigation, Suche nach Anzeigename
+und Anmeldekennung, Rollen-/Statusfilter, stabile Sortierung und SQL-Pagination.
+Kontodetails bündeln Rollen, Sperrung, Passwortwiederherstellung, Teamzuordnungen
+und Profilbildverwaltung.
+
+Die endgültige Kontolöschung erfasst auch vorhandene Lernhistorien, XP, Quiz-/
+Prüfungs-/Labversuche, persönliche Challenge-Daten und private Dateien. Sie verlangt
+Administratorrechte, exakte Anmeldekennung und zusätzliche Bestätigung; Selbstlöschung
+und Löschung des letzten aktiven Administrators sind gesperrt. Gemeinsame Inhalte
+und fremde Lernergebnisse bleiben gemäß der
+[Kontolöschrichtlinie](docs/ACCOUNT_DELETION_POLICY.md) erhalten oder werden anonymisiert.
+Dateien werden erst nach dem Datenbank-Commit über eine wiederholbare Warteschlange
+bereinigt. Externe Backups werden dadurch nicht verändert.
+
+Die additiven Migrationen `0022_topic_proposals.sql`,
+`0023_account_file_cleanup_jobs.sql` und `0024_complete_account_erasure.sql`
+ergänzen Vorschläge, Dateibereinigung und die vollständige Löschstrategie.
+Frühere Migrationen bleiben unverändert. Diese lokale Release-Vorbereitung ist kein
+Nachweis eines produktiven Deployments. Prüfungen und Abweichungen stehen im
+[Release-Prüfbericht](docs/RELEASE_REVIEW_2026-11-19.md).
 
 ## Architektur
 
@@ -110,7 +141,7 @@ Private Uploads und Profilbilder liegen außerhalb des Webroots und werden nur �
 | Bereich | Technologie |
 | --- | --- |
 | Runtime | Node.js 24 |
-| Framework | Next.js 16.3.8 |
+| Framework | Next.js 16.4.6 |
 | UI | React 19, TypeScript, Tailwind CSS |
 | Authentifizierung | Auth.js |
 | Datenbank | PostgreSQL 17 |

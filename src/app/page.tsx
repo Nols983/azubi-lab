@@ -30,17 +30,23 @@ export default async function DashboardPage() {
   ]);
   return (
     <div className="space-y-8 sm:space-y-10">
-      <DynamicDashboardGreeting displayName={currentUser?.displayName} />
+      <DynamicDashboardGreeting
+        displayName={currentUser?.displayName}
+        avatarSrc={shellProfile?.avatar.src}
+        roleLabel={shellProfile?.roleLabel}
+        activeTitle={shellProfile?.activeTitle}
+        xp={shellProfile?.xp}
+      />
       <section aria-labelledby="today-heading">
         <div className="mb-4"><p className="text-sm font-medium text-blue-700">Dein nächster Schritt</p><h2 id="today-heading" className="mt-1 text-xl font-bold text-slate-950 sm:text-2xl">Heute im Azubi Lab</h2></div>
         <div className="grid gap-5 xl:grid-cols-[minmax(0,1.35fr)_minmax(20rem,1fr)]"><ContinueLearningCard /><DailyChallengeCard data={challenge} /></div>
       </section>
       {notifications.audience === "learner" && <NotificationSummary unreadCount={notifications.unreadCount} notifications={notifications.notifications} />}
+      {shellProfile?.xp && <DashboardXpCard progress={shellProfile.xp} activeTitle={shellProfile.activeTitle} milestones={shellProfile.nextMilestones} pinnedBadges={shellProfile.pinnedBadges} />}
       <div className="grid min-w-0 gap-5 xl:grid-cols-2">
         <LearningPlanSummary data={learningPlan} />
         <ProgressSummary />
       </div>
-      {shellProfile?.xp && <DashboardXpCard progress={shellProfile.xp} activeTitle={shellProfile.activeTitle} milestones={shellProfile.nextMilestones} />}
       <LearningAreas areas={dashboardLearningAreas} />
     </div>
   );
@@ -55,10 +61,13 @@ function ObserverDashboard({ displayName }: { displayName: string }) {
   ] as const;
   return (
     <div className="space-y-8 sm:space-y-10">
-      <header>
+      <header className="relative overflow-hidden rounded-3xl border border-blue-100 bg-white p-5 shadow-sm sm:p-7 lg:p-8">
+        <span aria-hidden="true" className="absolute -right-16 -top-20 size-56 rounded-full bg-blue-50" />
+        <div className="relative">
         <p className="text-sm font-semibold uppercase tracking-[0.14em] text-blue-700">Betrachtermodus</p>
         <h1 className="mt-2 break-words text-3xl font-bold tracking-tight text-slate-950 sm:text-4xl">Willkommen, {displayName}</h1>
         <p className="mt-3 max-w-3xl text-base leading-7 text-slate-600 sm:text-lg">Erkunde die Lernplattform in einer sicheren, schreibgeschützten Vorschau. Es werden keine XP, Lernstände oder persönlichen Versuchshistorien erzeugt.</p>
+        </div>
       </header>
       <section aria-labelledby="observer-destinations-heading">
         <h2 id="observer-destinations-heading" className="text-2xl font-bold text-slate-950">Plattform erkunden</h2>

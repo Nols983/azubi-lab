@@ -1,6 +1,7 @@
 import "server-only";
 
 import { buildTrainerReportingSnapshot } from "../trainer-reporting.ts";
+import { listAccessibleLearnerIds } from "./learner-access-repository.ts";
 import { listLearnerAccounts } from "./admin-repository.ts";
 import { listAllAssignmentsForAdmin } from "./challenge-assignment-repository.ts";
 import { listCurriculumAssignmentsForLearners } from "./curriculum-assignment-repository.ts";
@@ -11,13 +12,13 @@ import { readTrainerLabAggregatesForLearners } from "./trainer-lab-reporting-rep
 import { readTrainerLearnerFactsForLearners } from "./trainer-learner-summary-repository.ts";
 
 export async function getTrainerReportingSnapshot(now = new Date()) {
-  await requireCapability("viewLearnerProgress");
-  const learners = await listLearnerAccounts();
-  const learnerIds = learners.map((learner) => learner.id);
+  const actor = await requireCapability("viewLearnerProgress");
+  const learnerIds = await listAccessibleLearnerIds(actor.id);
+  const learners = await listLearnerAccounts(learnerIds);
   const [states, planningRecords, challengeAssignments, labAggregates, learnerFacts] = await Promise.all([
     readLearnerProgressForUsers(learnerIds),
     listCurriculumAssignmentsForLearners(learnerIds),
-    listAllAssignmentsForAdmin(now),
+    listAllAssignmentsForAdmin(now, learnerIds),
     readTrainerLabAggregatesForLearners(learnerIds),
     readTrainerLearnerFactsForLearners(learnerIds),
   ]);

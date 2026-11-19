@@ -169,7 +169,7 @@ Es gibt keinen zusätzlichen `web`-Router und keine anwendungsspezifische Redire
 10. `docker stack services azubi-lab`, `docker service ps azubi-lab_app` und `docker service ps azubi-lab_postgres` müssen jeweils `1/1` beziehungsweise einen gesunden laufenden Task zeigen.
 11. Interne Readiness über den auf `swarm-manager` aufgelösten Task und anschließend beide Traefik-Routen mit `curl --fail --silent "https://$AZUBI_LAB_HOST/api/health/ready"` und `curl --fail --silent "https://$AZUBI_LAB_PUBLIC_HOST/api/health/ready"` prüfen. Den öffentlichen Aufruf zusätzlich von einem Gerät außerhalb des privaten Zugangsnetzes testen.
 12. Für `azubi.internal.example` die private Step-CA-Kette und für `azubi.example.com` die öffentlich vertrauenswürdige ACME-Kette prüfen; es darf keinen Host-Port für App oder PostgreSQL geben.
-13. Einen Lernenden-, Werkstattleiter- und Admin-Login samt der unten dokumentierten Rollengrenzen prüfen.
+13. Einen Lernenden-, Teamleiter- und Admin-Login samt der unten dokumentierten Rollengrenzen prüfen.
 14. Als autorisierter Nutzer einen Evidence-Anhang schreiben und wieder herunterladen; der Hostpfad bleibt direkt unzugänglich.
 
 Die Jobs `swarm-migrate.sh` und `swarm-seed-admin.sh` entfernen ihren temporären Service nach Abschluss. Nach einem harten Abbruch wird ein übrig gebliebener, eindeutig zeitgestempelter Job zunächst mit `docker service ps`/`docker service logs` untersucht und anschließend explizit mit `docker service rm <job>` entfernt.
@@ -295,7 +295,7 @@ openssl rand -base64 32
 
 ### Rollen und Kontowiederherstellung
 
-Die Anwendungsrollen sind `learner` (Lernender), `observer` (Betrachter), `instructor` (Werkstattleiter) und `admin` (Administrator). Betrachter besitzen ausschließlich die schreibgeschützte Produktvorschau und eigene Profil-/Avatarfunktionen, aber keine Lernenden-XP. Werkstattleiter verwalten Challenges, Reviews, Rubriken und erlaubte Zuweisungen und sehen die für die Ausbildung erforderlichen Fortschrittsdaten. Kontenerstellung, Sperrung/Reaktivierung, Rollenverwaltung und Passwort-Reset-Links bleiben ausschließlich Administratoren vorbehalten. Rollen werden für jede privilegierte Serveraktion aus dem aktuellen PostgreSQL-Datensatz geprüft; die Sitzung enthält keine maßgebliche Rollenfreigabe.
+Die Anwendungsrollen sind `learner` (Lernender), `observer` (Betrachter), `instructor` (Teamleiter) und `admin` (Administrator). Betrachter besitzen ausschließlich die schreibgeschützte Produktvorschau und eigene Profil-/Avatarfunktionen, aber keine Lernenden-XP. Teamleiter verwalten Challenges und Rubriken; Azubi-bezogene Reviews, Zuweisungen und Fortschrittsdaten sind auf ihre als `manager` geleiteten aktiven Teams begrenzt. Einfache Mitgliedschaften und archivierte Teams gewähren keine Betreuungsrechte. Kontenerstellung, Sperrung/Reaktivierung, Rollenverwaltung und Passwort-Reset-Links bleiben ausschließlich Administratoren vorbehalten. Rollen werden für jede privilegierte Serveraktion aus dem aktuellen PostgreSQL-Datensatz geprüft; die Sitzung enthält keine maßgebliche Rollenfreigabe.
 
 Kontowiederherstellung erfolgt operativ so:
 
@@ -393,7 +393,7 @@ curl --fail --silent https://<production-host>/api/health/ready
 docker compose --env-file /etc/azubi-lab/azubi-lab.env -f compose.production.yml exec -T app node -e "fetch('http://127.0.0.1:3000/api/health/ready').then(async r=>{console.log(r.status);if(!r.ok)process.exit(1)})"
 ```
 
-Danach im Browser Lernenden-, Werkstattleiter- und Admin-Anmeldung prüfen. Der Werkstattleiter muss Trainer-Dashboard, Challenge-Management, Reviews, Zuweisungen und autorisierte Evidence-Downloads erreichen, aber weder `/admin/konten` noch Reset- oder Rollensteuerungen. Der Administrator muss einen Einmal-Link erzeugen können; nach erfolgreichem Reset müssen Wiederverwendung und alte Sitzung scheitern. Der Health-Endpunkt nennt weder Version, Benutzerzahlen, Schema, Pfade noch Konfigurationsnamen.
+Danach im Browser Lernenden-, Teamleiter- und Admin-Anmeldung prüfen. Der Teamleiter muss Trainer-Dashboard und Challenge-Management sowie Reviews, Zuweisungen und Evidence-Downloads ausschließlich für Azubis seiner geleiteten aktiven Teams erreichen, aber weder `/admin/konten` noch Reset- oder Rollensteuerungen. Zusätzlich fehlende Teamleitung, fremde IDs, archivierte Teams und sofortigen Rechteentzug prüfen. Der Administrator muss einen Einmal-Link erzeugen können; nach erfolgreichem Reset müssen Wiederverwendung und alte Sitzung scheitern. Der Health-Endpunkt nennt weder Version, Benutzerzahlen, Schema, Pfade noch Konfigurationsnamen.
 
 ## Benachrichtigungs-Scheduler
 
